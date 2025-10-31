@@ -8,7 +8,7 @@ import { Box, Cylinder, useGLTF, useAnimations } from "@react-three/drei";
 // Last-try Drohne vorladen
 useGLTF.preload('/last-try.glb');
 
-function DebugLastTryDrone({ droneRef }: { droneRef: React.RefObject<THREE.Group> }) {
+function DebugLastTryDrone({ droneRef }: { droneRef: React.RefObject<THREE.Group | null> }) {
   const { scene, animations } = useGLTF('/last-try.glb');
   const { actions, mixer } = useAnimations(animations, droneRef);
   const [debugInfo, setDebugInfo] = useState<any>(null);
@@ -43,7 +43,14 @@ function DebugLastTryDrone({ droneRef }: { droneRef: React.RefObject<THREE.Group
           scale: child.scale,
           rotation: child.rotation,
           visible: child.visible,
-          material: child.material ? child.material.type : 'none'
+          material: (() => {
+            if (!(child as THREE.Mesh).isMesh || !(child as THREE.Mesh).material) return 'none';
+            const mat = (child as THREE.Mesh).material;
+            if (Array.isArray(mat)) {
+              return mat[0]?.type || 'array';
+            }
+            return mat.type;
+          })()
         });
       });
       

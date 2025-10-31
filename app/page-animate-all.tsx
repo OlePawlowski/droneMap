@@ -8,7 +8,7 @@ import { useGLTF } from "@react-three/drei";
 // DJI Drohne vorladen
 useGLTF.preload('/dji_phantom4.glb');
 
-function AnimateAllDroneModel({ droneRef }: { droneRef: React.RefObject<THREE.Group> }) {
+function AnimateAllDroneModel({ droneRef }: { droneRef: React.RefObject<THREE.Group | null> }) {
   const { scene } = useGLTF('/dji_phantom4.glb');
   const allObjects = useRef<THREE.Object3D[]>([]);
   

@@ -1,5 +1,6 @@
 // Global JSX typing for the custom <model-viewer> web component
-// Ensures TS recognizes the intrinsic element across the app
+
+import React from 'react';
 
 declare global {
   namespace JSX {
@@ -21,9 +22,4 @@ declare global {
 }
 
 export {};
-
-
-
-
-
 

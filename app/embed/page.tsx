@@ -431,23 +431,32 @@ function BuildingModel() {
         // Gold/Orange-Materialien für Gebäude 1
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((mat: any) => {
-              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-              mat.metalness = 0.5;
-              mat.roughness = 0.3;
-              mat.emissive = new THREE.Color(0x1a1a0a);
-              mat.emissiveIntensity = 0.05;
-              mat.envMapIntensity = 1.0;
-              mat.needsUpdate = true;
+            mesh.material.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.metalness = 0.5;
+                  mat.roughness = 0.3;
+                  mat.emissive = new THREE.Color(0x1a1a0a);
+                  mat.emissiveIntensity = 0.05;
+                  mat.envMapIntensity = 1.0;
+                }
+                mat.needsUpdate = true;
+              }
             });
           } else {
-            mesh.material.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-            mesh.material.metalness = 0.5;
-            mesh.material.roughness = 0.3;
-            mesh.material.emissive = new THREE.Color(0x1a1a0a);
-            mesh.material.emissiveIntensity = 0.05;
-            mesh.material.envMapIntensity = 1.0;
-            mesh.material.needsUpdate = true;
+            const mat = mesh.material;
+            if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.metalness = 0.5;
+                mat.roughness = 0.3;
+                mat.emissive = new THREE.Color(0x1a1a0a);
+                mat.emissiveIntensity = 0.05;
+                mat.envMapIntensity = 1.0;
+              }
+              mat.needsUpdate = true;
+            }
           }
         }
       }
@@ -488,23 +497,32 @@ function OptionalBuilding2() {
         // Gold/Orange-Materialien für Gebäude 2
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((mat: any) => {
-              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-              mat.metalness = 0.5;
-              mat.roughness = 0.3;
-              mat.emissive = new THREE.Color(0x1a1a0a);
-              mat.emissiveIntensity = 0.05;
-              mat.envMapIntensity = 1.0;
-              mat.needsUpdate = true;
+            mesh.material.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.metalness = 0.5;
+                  mat.roughness = 0.3;
+                  mat.emissive = new THREE.Color(0x1a1a0a);
+                  mat.emissiveIntensity = 0.05;
+                  mat.envMapIntensity = 1.0;
+                }
+                mat.needsUpdate = true;
+              }
             });
           } else {
-            mesh.material.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-            mesh.material.metalness = 0.5;
-            mesh.material.roughness = 0.3;
-            mesh.material.emissive = new THREE.Color(0x1a1a0a);
-            mesh.material.emissiveIntensity = 0.05;
-            mesh.material.envMapIntensity = 1.0;
-            mesh.material.needsUpdate = true;
+            const mat = mesh.material;
+            if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.metalness = 0.5;
+                mat.roughness = 0.3;
+                mat.emissive = new THREE.Color(0x1a1a0a);
+                mat.emissiveIntensity = 0.05;
+                mat.envMapIntensity = 1.0;
+              }
+              mat.needsUpdate = true;
+            }
           }
         }
       }
@@ -578,23 +596,32 @@ function OptionalBridge() {
         // Gold/Orange-Materialien für Gebäude 2
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((mat: any) => {
-              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-              mat.metalness = 0.5;
-              mat.roughness = 0.3;
-              mat.emissive = new THREE.Color(0x1a1a0a);
-              mat.emissiveIntensity = 0.05;
-              mat.envMapIntensity = 1.0;
-              mat.needsUpdate = true;
+            mesh.material.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.metalness = 0.5;
+                  mat.roughness = 0.3;
+                  mat.emissive = new THREE.Color(0x1a1a0a);
+                  mat.emissiveIntensity = 0.05;
+                  mat.envMapIntensity = 1.0;
+                }
+                mat.needsUpdate = true;
+              }
             });
           } else {
-            mesh.material.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-            mesh.material.metalness = 0.5;
-            mesh.material.roughness = 0.3;
-            mesh.material.emissive = new THREE.Color(0x1a1a0a);
-            mesh.material.emissiveIntensity = 0.05;
-            mesh.material.envMapIntensity = 1.0;
-            mesh.material.needsUpdate = true;
+            const mat = mesh.material;
+            if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.metalness = 0.5;
+                mat.roughness = 0.3;
+                mat.emissive = new THREE.Color(0x1a1a0a);
+                mat.emissiveIntensity = 0.05;
+                mat.envMapIntensity = 1.0;
+              }
+              mat.needsUpdate = true;
+            }
           }
         }
       }

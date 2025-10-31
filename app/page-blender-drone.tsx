@@ -3,14 +3,14 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useRef, useState, useEffect } from "react";
 import * as THREE from "three";
-import { useGLTF } from "@react-three/drei";
+import { Box, Cylinder, useGLTF } from "@react-three/drei";
 
 // Versuche verschiedene Drohnen-Modelle zu laden
 useGLTF.preload('/dji_phantom4.glb');
 useGLTF.preload('/dji_inspire.glb');
 useGLTF.preload('/dji_drone.glb');
 
-function BlenderDroneModel({ droneRef }: { droneRef: React.RefObject<THREE.Group> }) {
+function BlenderDroneModel({ droneRef }: { droneRef: React.RefObject<THREE.Group | null> }) {
   const [currentModel, setCurrentModel] = useState('/dji_phantom4.glb');
   const { scene } = useGLTF(currentModel);
   const rotorRefs = useRef<(THREE.Group | null)[]>([]);
@@ -43,7 +43,7 @@ function BlenderDroneModel({ droneRef }: { droneRef: React.RefObject<THREE.Group
             child.name.toLowerCase().includes('motor') ||
             child.name.toLowerCase().includes('prop')) {
           console.log('🎯 ROTOR GEFUNDEN:', child.name, child);
-          rotorRefs.current.push(child);
+           rotorRefs.current.push(child as THREE.Group);
         }
       });
       

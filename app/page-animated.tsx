@@ -8,7 +8,7 @@ import { Box, Cylinder, Sphere, useGLTF, useAnimations } from "@react-three/drei
 // Alternative: Animierte DJI Phantom 4 Datei vorladen
 useGLTF.preload('/dji_phantom_4_animation.glb');
 
-function AnimatedDroneModel({ droneRef }: { droneRef: React.RefObject<THREE.Group> }) {
+function AnimatedDroneModel({ droneRef }: { droneRef: React.RefObject<THREE.Group | null> }) {
   const { scene, animations } = useGLTF('/dji_phantom_4_animation.glb');
   const { actions, mixer } = useAnimations(animations, droneRef);
   

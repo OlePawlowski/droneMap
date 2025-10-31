@@ -1,11 +1,23 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import React from 'react';
 
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'model-viewer': any;
+      'model-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        src?: string;
+        alt?: string;
+        'auto-rotate'?: boolean;
+        'camera-controls'?: boolean;
+        'shadow-intensity'?: string;
+        'environment-image'?: string;
+        exposure?: string;
+        loading?: 'auto' | 'lazy' | 'eager';
+        'animation-name'?: string;
+        autoplay?: boolean;
+      }, HTMLElement>;
     }
   }
 }
@@ -59,6 +71,7 @@ export default function ModelViewer() {
   }, []);
 
   return (
+    // @ts-expect-error - model-viewer is a web component, not a standard React component
     <model-viewer
       ref={modelViewerRef}
       src="/result.gltf"
