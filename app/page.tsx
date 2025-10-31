@@ -431,23 +431,32 @@ function BuildingModel() {
         // Gold/Orange-Materialien für Gebäude 1
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((mat: any) => {
-              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-              mat.metalness = 0.5;
-              mat.roughness = 0.3;
-              mat.emissive = new THREE.Color(0x1a1a0a);
-              mat.emissiveIntensity = 0.05;
-              mat.envMapIntensity = 1.0;
-              mat.needsUpdate = true;
+            mesh.material.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.metalness = 0.5;
+                  mat.roughness = 0.3;
+                  mat.emissive = new THREE.Color(0x1a1a0a);
+                  mat.emissiveIntensity = 0.05;
+                  mat.envMapIntensity = 1.0;
+                }
+                mat.needsUpdate = true;
+              }
             });
           } else {
-            mesh.material.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-            mesh.material.metalness = 0.5;
-            mesh.material.roughness = 0.3;
-            mesh.material.emissive = new THREE.Color(0x1a1a0a);
-            mesh.material.emissiveIntensity = 0.05;
-            mesh.material.envMapIntensity = 1.0;
-            mesh.material.needsUpdate = true;
+            const mat = mesh.material as THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
+            if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.metalness = 0.5;
+                mat.roughness = 0.3;
+                mat.emissive = new THREE.Color(0x1a1a0a);
+                mat.emissiveIntensity = 0.05;
+                mat.envMapIntensity = 1.0;
+              }
+              mat.needsUpdate = true;
+            }
           }
         }
       }
@@ -464,14 +473,13 @@ function BuildingModel() {
 
 function OptionalBuilding2() {
   // Versuche '/gebäude-2.glb' zu laden, wenn vorhanden
-  let gltf: ReturnType<typeof useGLTF> | null = null;
-  try {
-    gltf = useGLTF('/gebäude-2-neu.glb') as any;
-  } catch (e) {
-    return null;
-  }
-  const { scene } = gltf as any;
+  // Hooks müssen immer aufgerufen werden
+  const gltf = useGLTF('/gebäude-2-neu.glb');
+  const { scene } = gltf;
+  
+  // Verwende useMemo immer
   const root = useMemo(() => {
+    if (!scene) return null;
     const cloned = scene.clone();
     const bbox = new THREE.Box3().setFromObject(cloned);
     if (isFinite(bbox.min.y)) {
@@ -479,7 +487,7 @@ function OptionalBuilding2() {
       cloned.position.y += liftY;
     }
     // Gold/Orange-Materialien für Gebäude 2
-    cloned.traverse((child: any) => {
+    cloned.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.castShadow = true;
@@ -488,29 +496,40 @@ function OptionalBuilding2() {
         // Gold/Orange-Materialien für Gebäude 2
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((mat: any) => {
-              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-              mat.metalness = 0.5;
-              mat.roughness = 0.3;
-              mat.emissive = new THREE.Color(0x1a1a0a);
-              mat.emissiveIntensity = 0.05;
-              mat.envMapIntensity = 1.0;
-              mat.needsUpdate = true;
+            mesh.material.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.metalness = 0.5;
+                  mat.roughness = 0.3;
+                  mat.emissive = new THREE.Color(0x1a1a0a);
+                  mat.emissiveIntensity = 0.05;
+                  mat.envMapIntensity = 1.0;
+                }
+                mat.needsUpdate = true;
+              }
             });
           } else {
-            mesh.material.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-            mesh.material.metalness = 0.5;
-            mesh.material.roughness = 0.3;
-            mesh.material.emissive = new THREE.Color(0x1a1a0a);
-            mesh.material.emissiveIntensity = 0.05;
-            mesh.material.envMapIntensity = 1.0;
-            mesh.material.needsUpdate = true;
+            const mat = mesh.material;
+            if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.metalness = 0.5;
+                mat.roughness = 0.3;
+                mat.emissive = new THREE.Color(0x1a1a0a);
+                mat.emissiveIntensity = 0.05;
+                mat.envMapIntensity = 1.0;
+              }
+              mat.needsUpdate = true;
+            }
           }
         }
       }
     });
     return cloned;
   }, [scene]);
+  
+  if (!root) return null;
 
   // Professionelle Platzierung: Basis/Plaza, Zuweg, leichte Ausrichtung
   const baseColor = '#2f3337';
@@ -540,28 +559,14 @@ function OptionalBuilding2() {
 }
 
 function OptionalBridge() {
-  // Versuche exakten Dateinamen mit Umlauten und sinnvolle Fallbacks zu laden
-  let gltf: ReturnType<typeof useGLTF> | null = null;
-  let src = '/brücke-über-hafen.glb'; // Hinweis: enthält kombinierende Umlaute
-  try {
-    gltf = useGLTF(src) as any;
-  } catch (e) {
-    try {
-      // Fallback: ASCII-Umlaute
-      src = '/bruecke-ueber-hafen.glb';
-      gltf = useGLTF(src) as any;
-    } catch (e2) {
-      try {
-        // Fallback: vorkomponierte Umlaute
-        src = '/brücke-mit-hafen-neu.glb';
-        gltf = useGLTF(src) as any;
-      } catch (e3) {
-        return null;
-      }
-    }
-  }
-  const { scene } = gltf as any;
+  // Versuche den ersten verfügbaren Pfad zu laden
+  // Hooks müssen immer aufgerufen werden - verwende den ersten Pfad
+  const gltf = useGLTF('/brücke-über-hafen.glb');
+  const { scene } = gltf;
+  
+  // Verwende useMemo immer
   const root = useMemo(() => {
+    if (!scene) return null;
     const cloned = scene.clone();
     const bbox = new THREE.Box3().setFromObject(cloned);
     if (isFinite(bbox.min.y)) {
@@ -569,7 +574,7 @@ function OptionalBridge() {
       cloned.position.y += liftY;
     }
     // Gold/Orange-Materialien für Gebäude 2
-    cloned.traverse((child: any) => {
+    cloned.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.castShadow = true;
@@ -578,29 +583,40 @@ function OptionalBridge() {
         // Gold/Orange-Materialien für Gebäude 2
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((mat: any) => {
-              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-              mat.metalness = 0.5;
-              mat.roughness = 0.3;
-              mat.emissive = new THREE.Color(0x1a1a0a);
-              mat.emissiveIntensity = 0.05;
-              mat.envMapIntensity = 1.0;
-              mat.needsUpdate = true;
+            mesh.material.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+                mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.metalness = 0.5;
+                  mat.roughness = 0.3;
+                  mat.emissive = new THREE.Color(0x1a1a0a);
+                  mat.emissiveIntensity = 0.05;
+                  mat.envMapIntensity = 1.0;
+                }
+                mat.needsUpdate = true;
+              }
             });
           } else {
-            mesh.material.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
-            mesh.material.metalness = 0.5;
-            mesh.material.roughness = 0.3;
-            mesh.material.emissive = new THREE.Color(0x1a1a0a);
-            mesh.material.emissiveIntensity = 0.05;
-            mesh.material.envMapIntensity = 1.0;
-            mesh.material.needsUpdate = true;
+            const mat = mesh.material;
+            if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
+              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.metalness = 0.5;
+                mat.roughness = 0.3;
+                mat.emissive = new THREE.Color(0x1a1a0a);
+                mat.emissiveIntensity = 0.05;
+                mat.envMapIntensity = 1.0;
+              }
+              mat.needsUpdate = true;
+            }
           }
         }
       }
     });
     return cloned;
   }, [scene]);
+
+  if (!root) return null;
 
   // Großer Hafen mit Wasser quer durch die Map (z: -12 bis 12)
   const harborPos = new THREE.Vector3(-8, 0.011, 0);
@@ -625,7 +641,7 @@ function OptionalBridge() {
 }
 
 
-function PathTo({ target }: { target: THREE.Vector3 }) {
+function _PathTo({ target }: { target: THREE.Vector3 }) {
   const color = '#ffb344';
   const start = new THREE.Vector3(0, 0.031, 8); // von Gebäude 1 (neue Position) zur Ziel-Plaza
   const points: THREE.Vector3[] = [
@@ -717,7 +733,7 @@ export default function Home() {
   const [introCompleted, setIntroCompleted] = useState(false);
   const [startCameraAnimation, setStartCameraAnimation] = useState(false);
   const [cameraPositionSet, setCameraPositionSet] = useState(false);
-  const camRef = useRef<any>(null);
+  const camRef = useRef<THREE.PerspectiveCamera | null>(null);
 
   const handlePositionUpdate = (pos: THREE.Vector3, rot: THREE.Quaternion) => {
     setDronePosition(pos.clone());
@@ -758,7 +774,9 @@ export default function Home() {
           toneMappingExposure: 1.0,
         }}
         onCreated={({ camera }) => { 
-          camRef.current = camera;
+          if (camera instanceof THREE.PerspectiveCamera) {
+            camRef.current = camera;
+          }
           // Setze initiale Kamera-Position (weit weg, aber nicht so weit und schaut auf Drohnen-Höhe y=2)
           camera.position.set(0, 30, 20);
           camera.lookAt(0, 2, 0);
@@ -889,9 +907,8 @@ export default function Home() {
           <button key={i}
             onClick={() => {
               if (!camRef.current) return;
-              const camera = camRef.current as THREE.PerspectiveCamera;
+              const camera = camRef.current;
               const startPos = camera.position.clone();
-              const startQuat = camera.quaternion.clone();
               const targetPos = b.p.clone();
               const targetLook = b.l.clone();
               const tmpCam = camera.clone();
