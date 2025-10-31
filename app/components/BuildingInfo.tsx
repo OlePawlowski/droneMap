@@ -59,7 +59,7 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
   const infoToShow = visibleInfo;
 
   // Wenn alwaysShow, dann rechts anzeigen
-  const containerStyle: CSSProperties = alwaysShow ? {
+  const rightStyle: CSSProperties = {
     position: 'absolute',
     top: '50%',
     right: '60px',
@@ -71,7 +71,9 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
     padding: '40px',
     borderRadius: '4px',
     border: '1px solid rgba(255, 255, 255, 0.05)'
-  } : {
+  };
+
+  const bottomStyle: CSSProperties = {
     position: 'absolute',
     bottom: '60px',
     left: '60px',
@@ -84,6 +86,8 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
     borderRadius: '4px',
     border: '1px solid rgba(255, 255, 255, 0.05)'
   };
+
+  const containerStyle = alwaysShow ? rightStyle : bottomStyle;
 
   return (
     <div style={containerStyle}>
