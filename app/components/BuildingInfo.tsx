@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { CSSProperties } from "react";
 
 interface BuildingInfo {
   position: { x: number; y: number; z: number };
@@ -58,7 +59,7 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
   const infoToShow = visibleInfo;
 
   // Wenn alwaysShow, dann rechts anzeigen
-  const containerStyle = alwaysShow ? {
+  const containerStyle: CSSProperties = alwaysShow ? {
     position: 'absolute',
     top: '50%',
     right: '60px',
