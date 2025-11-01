@@ -12,14 +12,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Erlaubt das Einbetten der Embed-Seite in iFrames
-        source: '/embed',
+        // Erlaubt das Einbetten der Embed-Seite in iFrames von überall
+        source: '/embed/:path*',
         headers: [
           {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN'
-          },
-          {
+            // X-Frame-Options entfernen - CSP ist moderner und wird bevorzugt
             key: 'Content-Security-Policy',
             value: "frame-ancestors *"
           },
