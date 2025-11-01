@@ -9,21 +9,20 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  async headers() {
-    return [
-      {
-        // Erlaubt das Einbetten der Embed-Seite in iFrames von überall
-        source: '/embed/:path*',
-        headers: [
-          {
-            // X-Frame-Options entfernen - CSP ist moderner und wird bevorzugt
-            key: 'Content-Security-Policy',
-            value: "frame-ancestors *"
-          },
-        ],
-      },
-    ];
-  },
+  // Header werden jetzt über middleware.ts gesetzt
+  // async headers() {
+  //   return [
+  //     {
+  //       source: '/embed/:path*',
+  //       headers: [
+  //         {
+  //           key: 'Content-Security-Policy',
+  //           value: "frame-ancestors *"
+  //         },
+  //       ],
+  //     },
+  //   ];
+  // },
 };
 
 export default nextConfig;
