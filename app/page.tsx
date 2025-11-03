@@ -915,27 +915,7 @@ export default function Home() {
         </div>
       </div>
       
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        color: 'white',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px',
-        zIndex: 1000
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-          <span style={{ marginRight: '10px' }}>ZURÜCK ZUR ÜBERSICHT</span>
-          <div style={{ 
-            width: '0', 
-            height: '0', 
-            borderLeft: '8px solid transparent',
-            borderRight: '8px solid transparent',
-            borderTop: '12px solid #ffb344',
-            boxShadow: '0 0 10px #ffb344'
-          }}></div>
-        </div>
-      </div>
+      {/* "Zurück zur Übersicht" entfernt */}
       
       <div style={{
         position: 'absolute',

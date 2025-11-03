@@ -171,11 +171,7 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
         </a>
 
         <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            console.log('Zu allen Projekten');
-          }}
+          href="/projekte"
           style={{
             color: 'rgba(255, 255, 255, 0.9)',
             fontSize: '14px',
