@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iFrame Test – Statikbüro 3D Drohnen Tour</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f6f7f8; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 18px; margin: 12px 0; color: #222; }
+    .frame { height: 100dvh; max-height: 900px; border: none; display: block; width: 100%; background: #0a0a0a; border-radius: 8px; }
+    .bar { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+    .url { color: #666; font-size: 12px; }
+    .note { margin: 10px 0 16px; color: #555; font-size: 14px; }
+    @media (max-width: 640px) { .wrap { padding: 10px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>iFrame Test</h1>
+      <div class="url">Quelle: https://drone-map-xlkq.vercel.app/embed</div>
+    </div>
+    <div class="note">Dieses Beispiel bettet die produktive Embed-Seite ein und nutzt eine mobile Höhe (100dvh).</div>
+    <iframe
+      class="frame"
+      src="https://drone-map-xlkq.vercel.app/embed"
+      allow="fullscreen"
+      loading="lazy"
+      title="Statikbüro 3D Drohnen Tour"
+      allowfullscreen
+    ></iframe>
+  </div>
+</body>
+</html>

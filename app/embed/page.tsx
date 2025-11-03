@@ -101,12 +101,39 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
         onDirectionUpdate(targetDir, false);
       }
     };
+
+    // Touch-Move zur Richtungssteuerung auf Mobilgeräten
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (!droneRef.current) return;
+
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const centerX = size.width / 2;
+      const centerY = size.height / 2;
+
+      const dx = touch.clientX - centerX;
+      const dy = touch.clientY - centerY;
+
+      const direction = new THREE.Vector3(dx * 0.01, 0, dy * 0.01).normalize();
+      setTargetDir(direction);
+
+      if (isSpacePressed) {
+        setIsFlying(true);
+        onDirectionUpdate(direction, true);
+      } else {
+        setIsFlying(false);
+        onDirectionUpdate(direction, false);
+      }
+    };
   
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("touchstart", handleTouchStart, { passive: false });
     window.addEventListener("touchend", handleTouchEnd, { passive: false });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
   
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
@@ -114,6 +141,7 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
       window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchmove", handleTouchMove);
     };
   }, [size, targetDir, isSpacePressed]);
   
@@ -766,8 +794,16 @@ export default function EmbedPage() {
     }, 3000);
   };
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   return (
-    <div style={{ width: "100vw", height: "700px", position: "relative" }}>
+    <div style={{ width: "100vw", height: "100svh", position: "relative", paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {!introCompleted && (
         <IntroAnimation onComplete={handleIntroComplete} />
       )}
@@ -776,11 +812,13 @@ export default function EmbedPage() {
         shadows
         camera={{ position: [0, 30, 20], fov: 60 }} 
         style={{ background: '#0a0a0a' }}
+        dpr={[1, 1.75]}
         gl={{
           antialias: true,
           outputColorSpace: THREE.SRGBColorSpace,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
+          powerPreference: 'high-performance',
         }}
         onCreated={({ camera }) => { 
           camRef.current = camera;
@@ -860,6 +898,7 @@ export default function EmbedPage() {
       {introCompleted && (
         <BuildingInfo dronePosition={{ x: dronePosition.x, y: dronePosition.y, z: dronePosition.z }} alwaysShow={true} />
       )}
+
     </div>
   );
 }

@@ -147,3 +147,5 @@ Bei Fragen oder Problemen:
 - Vercel Docs: https://vercel.com/docs
 - Next.js Deployment: https://nextjs.org/docs/deployment
 
+
+
