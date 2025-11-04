@@ -809,7 +809,18 @@ export default function Home() {
   };
 
   return (
-    <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
+    <div
+      style={{
+        width: "100vw",
+        height: isMobile ? "90svh" : "100vh",
+        position: "relative",
+        userSelect: 'none',
+        WebkitUserSelect: 'none' as any,
+        touchAction: 'none',
+        overscrollBehavior: 'contain'
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {!introCompleted && (
         <IntroAnimation onComplete={handleIntroComplete} />
       )}

@@ -808,7 +808,20 @@ export default function EmbedPage() {
   }, []);
 
   return (
-    <div style={{ width: "100vw", height: "100svh", position: "relative", paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div
+      style={{
+        width: "100vw",
+        height: isMobile ? "90svh" : "100svh",
+        position: "relative",
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        userSelect: 'none',
+        WebkitUserSelect: 'none' as any,
+        touchAction: 'none',
+        overscrollBehavior: 'contain'
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {!introCompleted && (
         <IntroAnimation onComplete={handleIntroComplete} />
       )}
