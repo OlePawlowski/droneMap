@@ -41,6 +41,7 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
   const [targetDir, setTargetDir] = useState(new THREE.Vector3(0, 0, -1));
   const [isFlying, setIsFlying] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const rafPending = useRef(false);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -105,27 +106,26 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
     // Touch-Move zur Richtungssteuerung auf Mobilgeräten
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
-      if (!droneRef.current) return;
-
+      if (!droneRef.current || rafPending.current) return;
+      rafPending.current = true;
       const touch = e.touches[0];
-      if (!touch) return;
-
-      const centerX = size.width / 2;
-      const centerY = size.height / 2;
-
-      const dx = touch.clientX - centerX;
-      const dy = touch.clientY - centerY;
-
-      const direction = new THREE.Vector3(dx * 0.01, 0, dy * 0.01).normalize();
-      setTargetDir(direction);
-
-      if (isSpacePressed) {
-        setIsFlying(true);
-        onDirectionUpdate(direction, true);
-      } else {
-        setIsFlying(false);
-        onDirectionUpdate(direction, false);
-      }
+      if (!touch) { rafPending.current = false; return; }
+      requestAnimationFrame(() => {
+        const centerX = size.width / 2;
+        const centerY = size.height / 2;
+        const dx = touch.clientX - centerX;
+        const dy = touch.clientY - centerY;
+        const direction = new THREE.Vector3(dx * 0.01, 0, dy * 0.01).normalize();
+        setTargetDir(direction);
+        if (isSpacePressed) {
+          setIsFlying(true);
+          onDirectionUpdate(direction, true);
+        } else {
+          setIsFlying(false);
+          onDirectionUpdate(direction, false);
+        }
+        rafPending.current = false;
+      });
     };
   
     window.addEventListener("mousemove", handleMouseMove);
@@ -807,9 +807,17 @@ export default function EmbedPage() {
       {!introCompleted && (
         <IntroAnimation onComplete={handleIntroComplete} />
       )}
+      {/* Mobile Onboarding Overlay */}
+      {isMobile && !introCompleted && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16, zIndex: 20, pointerEvents: 'none' }}>
+          <div style={{ background: 'rgba(0,0,0,0.55)', color: 'white', padding: '12px 14px', borderRadius: 8, fontSize: 12, lineHeight: 1.5, textAlign: 'center', maxWidth: 420 }}>
+            Halten und Finger bewegen zum Fliegen. Ziehen ändert die Richtung.
+          </div>
+        </div>
+      )}
       
       <Canvas 
-        shadows
+        shadows={!isMobile}
         camera={{ position: [0, 30, 20], fov: 60 }} 
         style={{ background: '#0a0a0a' }}
         dpr={[1, 1.75]}
@@ -817,7 +825,7 @@ export default function EmbedPage() {
           antialias: true,
           outputColorSpace: THREE.SRGBColorSpace,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
+          toneMappingExposure: isMobile ? 0.95 : 1.0,
           powerPreference: 'high-performance',
         }}
         onCreated={({ camera }) => { 
@@ -860,9 +868,9 @@ export default function EmbedPage() {
           position={[0, -0.11, 0]}
           opacity={0.45}
           scale={40}
-          blur={2.6}
+          blur={isMobile ? 2.0 : 2.6}
           far={20}
-          resolution={1024}
+          resolution={isMobile ? 512 : 1024}
           frames={1}
         />
         <ArchitecturalGrid />
