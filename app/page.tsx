@@ -756,16 +756,39 @@ export default function Home() {
   const droneStartPos = new THREE.Vector3(0, 2, 7);
   const [dronePosition, setDronePosition] = useState(droneStartPos.clone());
   const [droneRotation, setDroneRotation] = useState(new THREE.Quaternion());
+  const lastStateUpdateRef = useRef(0);
   const [targetDirection, setTargetDirection] = useState(new THREE.Vector3(0, 0, -1));
   const [isFlying, setIsFlying] = useState(false);
   const [introCompleted, setIntroCompleted] = useState(false);
   const [startCameraAnimation, setStartCameraAnimation] = useState(false);
   const [cameraPositionSet, setCameraPositionSet] = useState(false);
   const camRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  useEffect(() => {
+    const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
+    update();
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  // Zeige die Anleitung NACH dem Intro für ~2.6s
+  useEffect(() => {
+    if (!introCompleted) return;
+    setShowHint(true);
+    const t = setTimeout(() => setShowHint(false), 2600);
+    return () => clearTimeout(t);
+  }, [introCompleted]);
 
   const handlePositionUpdate = (pos: THREE.Vector3, rot: THREE.Quaternion) => {
-    setDronePosition(pos.clone());
-    setDroneRotation(rot.clone());
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - lastStateUpdateRef.current > 100) { // ~10 Hz
+      lastStateUpdateRef.current = now;
+      setDronePosition(pos.clone());
+      setDroneRotation(rot.clone());
+    }
   };
 
   const handleDirectionUpdate = (dir: THREE.Vector3, flying: boolean) => {
@@ -789,6 +812,24 @@ export default function Home() {
     <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
       {!introCompleted && (
         <IntroAnimation onComplete={handleIntroComplete} />
+      )}
+      {/* Kurzes Onboarding-Overlay (2.6s) */}
+      {showHint && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pointerEvents: 'none', padding: 16, zIndex: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,0,0,0.55)', color: 'white', padding: '12px 14px', borderRadius: 10, boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}>
+            {/* Richtungskreuz */}
+            <div style={{ position: 'relative', width: 40, height: 40, opacity: 0.9 }}>
+              <div style={{ position: 'absolute', left: '50%', top: 0, transform: 'translateX(-50%)', width: 6, height: 14, borderRadius: 3, background: '#ffb344', boxShadow: '0 0 12px #ffb344' }} />
+              <div style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)', width: 6, height: 14, borderRadius: 3, background: '#ffb344', boxShadow: '0 0 12px #ffb344' }} />
+              <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', width: 14, height: 6, borderRadius: 3, background: '#ffb344', boxShadow: '0 0 12px #ffb344' }} />
+              <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', width: 14, height: 6, borderRadius: 3, background: '#ffb344', boxShadow: '0 0 12px #ffb344' }} />
+              <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,179,68,0.9)', boxShadow: '0 0 10px #ffb344' }} />
+            </div>
+            <div style={{ fontSize: 12, lineHeight: 1.6, maxWidth: 280 }}>
+              {isMobile ? 'Zum Fliegen Finger halten und ziehen. Ziehen ändert die Richtung.' : 'Zum Fliegen linke Maustaste halten und ziehen. Ziehen ändert die Richtung.'}
+            </div>
+          </div>
+        </div>
       )}
       
       <Canvas 

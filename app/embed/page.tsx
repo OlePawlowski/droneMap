@@ -767,6 +767,7 @@ export default function EmbedPage() {
   const droneStartPos = new THREE.Vector3(0, 2, 7);
   const [dronePosition, setDronePosition] = useState(droneStartPos.clone());
   const [droneRotation, setDroneRotation] = useState(new THREE.Quaternion());
+  const lastStateUpdateRef = useRef(0);
   const [targetDirection, setTargetDirection] = useState(new THREE.Vector3(0, 0, -1));
   const [isFlying, setIsFlying] = useState(false);
   const [introCompleted, setIntroCompleted] = useState(false);
@@ -775,8 +776,12 @@ export default function EmbedPage() {
   const camRef = useRef<any>(null);
 
   const handlePositionUpdate = (pos: THREE.Vector3, rot: THREE.Quaternion) => {
-    setDronePosition(pos.clone());
-    setDroneRotation(rot.clone());
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - lastStateUpdateRef.current > 100) {
+      lastStateUpdateRef.current = now;
+      setDronePosition(pos.clone());
+      setDroneRotation(rot.clone());
+    }
   };
 
   const handleDirectionUpdate = (dir: THREE.Vector3, flying: boolean) => {
