@@ -12,7 +12,7 @@ interface BuildingInfo {
   href?: string;
 }
 
-const BASE_URL = "https://statikbüro24.de/projekt.html";
+const BASE_URL = "https://statikbüro24.de/projekte.html";
 
 const BUILDINGS: BuildingInfo[] = [
   {
