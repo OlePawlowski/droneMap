@@ -41,6 +41,17 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
   const [targetDir, setTargetDir] = useState(new THREE.Vector3(0, 0, -1));
   const [isFlying, setIsFlying] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Prüfe ob mobile Gerät
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -128,22 +139,33 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
       }
     };
   
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("touchstart", handleTouchStart, { passive: false });
-    window.addEventListener("touchend", handleTouchEnd, { passive: false });
-    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    // Nur Maus-Events auf Desktop-Geräten
+    if (!isMobile) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mousedown", handleMouseDown);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    
+    // Nur Touch-Events auf mobilen Geräten
+    if (isMobile) {
+      window.addEventListener("touchstart", handleTouchStart, { passive: false });
+      window.addEventListener("touchend", handleTouchEnd, { passive: false });
+      window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    }
   
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchmove", handleTouchMove);
+      if (!isMobile) {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mousedown", handleMouseDown);
+        window.removeEventListener("mouseup", handleMouseUp);
+      }
+      if (isMobile) {
+        window.removeEventListener("touchstart", handleTouchStart);
+        window.removeEventListener("touchend", handleTouchEnd);
+        window.removeEventListener("touchmove", handleTouchMove);
+      }
     };
-  }, [size, targetDir, isSpacePressed]);
+  }, [size, targetDir, isSpacePressed, isMobile]);
   
   useFrame((_, delta) => {
     if (!droneRef.current) return;
@@ -844,14 +866,16 @@ export default function Home() {
       )}
       
       <Canvas 
-        shadows
+        shadows={!isMobile}
         camera={{ position: [0, 30, 20], fov: 60 }} 
         style={{ background: '#0a0a0a' }}
+        dpr={[1, 1.75]}
         gl={{
           antialias: true,
           outputColorSpace: THREE.SRGBColorSpace,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
+          toneMappingExposure: isMobile ? 0.95 : 1.0,
+          powerPreference: 'high-performance',
         }}
         onCreated={({ camera }) => { 
           if (camera instanceof THREE.PerspectiveCamera) {
@@ -896,9 +920,9 @@ export default function Home() {
           position={[0, -0.11, 0]}
           opacity={0.45}
           scale={40}
-          blur={2.6}
+          blur={isMobile ? 2.0 : 2.6}
           far={20}
-          resolution={1024}
+          resolution={isMobile ? 512 : 1024}
           frames={1}
         />
         <ArchitecturalGrid />

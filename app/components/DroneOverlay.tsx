@@ -35,7 +35,15 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
   const [isLoaded, setIsLoaded] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
   const [modelSrc, setModelSrc] = useState<string>("/last-try.glb");
+  const [isMobile, setIsMobile] = useState(false);
   const ModelViewerTag = 'model-viewer' as any;
+
+  useEffect(() => {
+    const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   useEffect(() => {
     // Google Model Viewer Script laden und auf Bereitschaft warten
@@ -69,48 +77,28 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
       const modelViewer = modelViewerRef.current;
       
       const handleLoad = () => {
-        console.log('Drohne erfolgreich geladen!');
         setIsLoaded(true);
         
-        // Materialien über Model Viewer API ändern
+        // Tone Mapping auf AGX setzen
         try {
-          // Warten bis das Modell vollständig geladen ist
+          // Warte kurz, damit der Renderer initialisiert ist
           setTimeout(() => {
             const scene = modelViewer.scene;
-            if (scene) {
-              scene.traverse((child: any) => {
-                if (child.isMesh && child.material) {
-                  // Original-Materialien für Drohne beibehalten
-                  if (Array.isArray(child.material)) {
-                    child.material.forEach((mat: any) => {
-                      if (mat.color) {
-                        // Original-Materialien beibehalten
-                        // mat.color.setHex(0xffb344);
-                        // mat.emissive = new THREE.Color(0x332200);
-                        // mat.emissiveIntensity = 0.1;
-                        mat.needsUpdate = true;
-                      }
-                    });
-                  } else {
-                    if (child.material.color) {
-                      // Original-Materialien beibehalten
-                      // child.material.color.setHex(0xffb344);
-                      // child.material.emissive = new THREE.Color(0x332200);
-                      // child.material.emissiveIntensity = 0.1;
-                      child.material.needsUpdate = true;
-                    }
-                  }
-                }
-              });
+            if (scene && scene.renderer) {
+              scene.renderer.toneMapping = THREE.AgXToneMapping;
+              scene.renderer.toneMappingExposure = 1.0;
+            } else if (modelViewer.renderer) {
+              // Fallback: direkter Zugriff auf renderer
+              modelViewer.renderer.toneMapping = THREE.AgXToneMapping;
+              modelViewer.renderer.toneMappingExposure = 1.0;
             }
           }, 100);
         } catch (error) {
-          console.log('Material-Änderung fehlgeschlagen:', error);
+          console.log('Tone Mapping konnte nicht gesetzt werden:', error);
         }
         
         // Animationen manuell starten falls nötig
         if (modelViewer.availableAnimations && modelViewer.availableAnimations.length > 0) {
-          console.log('Verfügbare Animationen:', modelViewer.availableAnimations);
           modelViewer.availableAnimations.forEach((animationName: string) => {
             modelViewer.play({ animationName: animationName, repetitions: Infinity });
           });
