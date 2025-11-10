@@ -76,14 +76,15 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
   
   const infoToShow = visibleInfo;
 
-  // Wenn alwaysShow, dann rechts anzeigen
+  // Wenn alwaysShow, dann rechts anzeigen (Desktop) oder unten (Mobile)
   const rightStyle: CSSProperties = {
     position: 'absolute',
-    top: isMobile ? '12px' : '50%',
+    top: isMobile ? 'auto' : '50%',
     right: isMobile ? '12px' : '60px',
-    bottom: 'auto',
+    bottom: isMobile ? '12px' : 'auto',
+    left: isMobile ? '12px' : 'auto',
     transform: isMobile ? 'none' : 'translateY(-50%)',
-    maxWidth: isMobile ? '80vw' : '400px',
+    maxWidth: isMobile ? 'calc(100vw - 24px)' : '400px',
     zIndex: 1000,
     background: 'rgba(0, 0, 0, 0.6)',
     backdropFilter: 'blur(8px)',
@@ -94,10 +95,11 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
 
   const bottomStyle: CSSProperties = {
     position: 'absolute',
-    top: isMobile ? '12px' : 'auto',
-    bottom: isMobile ? 'auto' : '60px',
+    top: isMobile ? 'auto' : 'auto',
+    bottom: isMobile ? '12px' : '60px',
     left: isMobile ? '12px' : '60px',
-    maxWidth: isMobile ? '80vw' : '600px',
+    right: isMobile ? '12px' : 'auto',
+    maxWidth: isMobile ? 'calc(100vw - 24px)' : '600px',
     zIndex: 1000,
     animation: 'fadeInSlide 0.4s ease-out',
     background: 'rgba(0, 0, 0, 0.6)',

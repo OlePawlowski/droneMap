@@ -39,10 +39,12 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
   const droneRef = useRef<THREE.Group>(null);
   const { size, camera } = useThree();
   const [targetDir, setTargetDir] = useState(new THREE.Vector3(0, 0, -1));
+  const smoothedTargetDir = useRef(new THREE.Vector3(0, 0, -1));
   const [isFlying, setIsFlying] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const rafPending = useRef(false);
+  const lastDirectionUpdate = useRef(0);
 
   // Prüfe ob mobile Gerät
   useEffect(() => {
@@ -57,6 +59,11 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!droneRef.current) return;
+      
+      // Throttle: Nur alle 16ms aktualisieren (~60fps)
+      const now = performance.now();
+      if (now - lastDirectionUpdate.current < 16) return;
+      lastDirectionUpdate.current = now;
   
       const centerX = size.width / 2;
       const centerY = size.height / 2;
@@ -113,25 +120,62 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
         onDirectionUpdate(targetDir, false);
       }
     };
+    
+    const handleTouchCancel = (e: TouchEvent) => {
+      e.preventDefault();
+      setIsSpacePressed(false);
+      setIsFlying(false);
+      if (targetDir) {
+        onDirectionUpdate(targetDir, false);
+      }
+    };
 
     // Touch-Move zur Richtungssteuerung auf Mobilgeräten
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       if (!droneRef.current || rafPending.current) return;
+      
+      // WICHTIG: Nur wenn Finger noch auf Display ist (e.touches.length > 0)
+      if (e.touches.length === 0) {
+        setIsSpacePressed(false);
+        setIsFlying(false);
+        if (targetDir) {
+          onDirectionUpdate(targetDir, false);
+        }
+        return;
+      }
+      
       rafPending.current = true;
       const touch = e.touches[0];
-      if (!touch) { rafPending.current = false; return; }
+      if (!touch) { 
+        setIsSpacePressed(false);
+        setIsFlying(false);
+        rafPending.current = false; 
+        return; 
+      }
+      
       requestAnimationFrame(() => {
+        // Throttle: Nur alle 16ms aktualisieren (~60fps)
+        const now = performance.now();
+        if (now - lastDirectionUpdate.current < 16) {
+          rafPending.current = false;
+          return;
+        }
+        lastDirectionUpdate.current = now;
+        
         const centerX = size.width / 2;
         const centerY = size.height / 2;
         const dx = touch.clientX - centerX;
         const dy = touch.clientY - centerY;
         const direction = new THREE.Vector3(dx * 0.01, 0, dy * 0.01).normalize();
         setTargetDir(direction);
-        if (isSpacePressed) {
+        
+        // Nur fliegen wenn Finger noch gedrückt ist
+        if (isSpacePressed && e.touches.length > 0) {
           setIsFlying(true);
           onDirectionUpdate(direction, true);
         } else {
+          setIsSpacePressed(false);
           setIsFlying(false);
           onDirectionUpdate(direction, false);
         }
@@ -150,6 +194,7 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
     if (isMobile) {
       window.addEventListener("touchstart", handleTouchStart, { passive: false });
       window.addEventListener("touchend", handleTouchEnd, { passive: false });
+      window.addEventListener("touchcancel", handleTouchCancel, { passive: false });
       window.addEventListener("touchmove", handleTouchMove, { passive: false });
     }
   
@@ -162,6 +207,7 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
       if (isMobile) {
         window.removeEventListener("touchstart", handleTouchStart);
         window.removeEventListener("touchend", handleTouchEnd);
+        window.removeEventListener("touchcancel", handleTouchCancel);
         window.removeEventListener("touchmove", handleTouchMove);
       }
     };
@@ -171,15 +217,17 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
     if (!droneRef.current) return;
 
     const moveSpeed = 4 * delta;
-    const rotationSpeed = 0.1;
+    const rotationSpeed = 0.08; // Etwas langsamer für weniger Zittern
+    const smoothingFactor = 0.15; // Dämpfung für die Zielrichtung
 
-
-    // Drohne dreht sich IMMER zur Mausposition (auch ohne zu fliegen)
+    // Geglättete Zielrichtung berechnen (reduziert Zittern)
     if (targetDir) {
+      smoothedTargetDir.current.lerp(targetDir, smoothingFactor);
+      
       const targetQuat = new THREE.Quaternion().setFromRotationMatrix(
         new THREE.Matrix4().lookAt(
           new THREE.Vector3(0, 0, 0),
-          targetDir,
+          smoothedTargetDir.current,
           new THREE.Vector3(0, 1, 0)
         )
       );
@@ -189,9 +237,9 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
 
 
     // Nur fliegen wenn Maustaste gedrückt ist
-    if (isFlying && targetDir) {
-      // Direkt zur Mausposition fliegen (nicht nur vorwärts)
-      const moveDirection = targetDir.clone();
+    if (isFlying && smoothedTargetDir.current) {
+      // Direkt zur geglätteten Zielrichtung fliegen (reduziert Zittern)
+      const moveDirection = smoothedTargetDir.current.clone();
       moveDirection.y = 0; // Nur horizontale Bewegung
       
       const move = moveDirection.clone().multiplyScalar(moveSpeed);
@@ -857,7 +905,7 @@ export default function EmbedPage() {
       )}
       {/* Onboarding Overlay (mobil + desktop), kurz nach Intro */}
       {showHint && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: isMobile ? 'flex-start' : 'flex-end', justifyContent: 'center', padding: 16, paddingTop: isMobile ? 24 : 16, zIndex: 20, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16, paddingBottom: isMobile ? 12 : 16, zIndex: 20, pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,0,0,0.55)', color: 'white', padding: '12px 14px', borderRadius: 10, boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}>
             {/* Richtungskreuz */}
             <div style={{ position: 'relative', width: 40, height: 40, opacity: 0.9 }}>
