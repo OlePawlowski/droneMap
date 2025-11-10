@@ -43,7 +43,6 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
   const [isFlying, setIsFlying] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const rafPending = useRef(false);
   const lastDirectionUpdate = useRef(0);
 
   // Prüfe ob mobile Gerät
@@ -130,11 +129,11 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
       }
     };
 
-    // Touch-Move zur Richtungssteuerung auf Mobilgeräten
+    // Während der Finger aufliegt: Richtung kontinuierlich aktualisieren
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
-      if (!droneRef.current || rafPending.current) return;
-      
+      if (!droneRef.current) return;
+
       // WICHTIG: Nur wenn Finger noch auf Display ist (e.touches.length > 0)
       if (e.touches.length === 0) {
         setIsSpacePressed(false);
@@ -144,43 +143,37 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
         }
         return;
       }
-      
-      rafPending.current = true;
+
       const touch = e.touches[0];
-      if (!touch) { 
+      if (!touch) {
         setIsSpacePressed(false);
         setIsFlying(false);
-        rafPending.current = false; 
-        return; 
+        return;
       }
-      
-      requestAnimationFrame(() => {
-        // Throttle: Nur alle 16ms aktualisieren (~60fps)
-        const now = performance.now();
-        if (now - lastDirectionUpdate.current < 16) {
-          rafPending.current = false;
-          return;
-        }
-        lastDirectionUpdate.current = now;
-        
-        const centerX = size.width / 2;
-        const centerY = size.height / 2;
-        const dx = touch.clientX - centerX;
-        const dy = touch.clientY - centerY;
-        const direction = new THREE.Vector3(dx * 0.01, 0, dy * 0.01).normalize();
-        setTargetDir(direction);
-        
-        // Nur fliegen wenn Finger noch gedrückt ist
-        if (isSpacePressed && e.touches.length > 0) {
-          setIsFlying(true);
-          onDirectionUpdate(direction, true);
-        } else {
-          setIsSpacePressed(false);
-          setIsFlying(false);
-          onDirectionUpdate(direction, false);
-        }
-        rafPending.current = false;
-      });
+
+      // Throttle: Nur alle 16ms aktualisieren (~60fps)
+      const now = performance.now();
+      if (now - lastDirectionUpdate.current < 16) return;
+      lastDirectionUpdate.current = now;
+
+      const centerX = size.width / 2;
+      const centerY = size.height / 2;
+
+      const dx = touch.clientX - centerX;
+      const dy = touch.clientY - centerY;
+
+      const direction = new THREE.Vector3(dx * 0.01, 0, dy * 0.01).normalize();
+      setTargetDir(direction);
+
+      // Nur fliegen wenn Finger noch gedrückt ist
+      if (isSpacePressed && e.touches.length > 0) {
+        setIsFlying(true);
+        onDirectionUpdate(direction, true);
+      } else {
+        setIsSpacePressed(false);
+        setIsFlying(false);
+        onDirectionUpdate(direction, false);
+      }
     };
   
     // Nur Maus-Events auf Desktop-Geräten

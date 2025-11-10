@@ -12,6 +12,8 @@ interface BuildingInfo {
   href?: string;
 }
 
+const BASE_URL = "https://statikbüro24.de/projekt.html";
+
 const BUILDINGS: BuildingInfo[] = [
   {
     position: { x: 0, y: 0, z: 3 }, // Gebäude 1 - sichtbare Position
@@ -19,7 +21,7 @@ const BUILDINGS: BuildingInfo[] = [
     subtitle: "Das Wohnprojekt",
     description: "Neubau eines 11-Parteienhauses in Berlin Tempelhof mit moderner Bauweise und nachhaltigen Materialien. Das Projekt zeichnet sich durch innovative architektonische Lösungen und energieeffiziente Bauweise aus.",
     distance: 3, // Reichweite für Gebäude-Erkennung
-    href: "/projekte#projekt-tempelhof"
+    href: `${BASE_URL}#projekt-tempelhof`
   },
   {
     position: { x: -7.7, y: 0, z: -6 }, // Brücke über Hafen - tatsächliche Position
@@ -27,7 +29,7 @@ const BUILDINGS: BuildingInfo[] = [
     subtitle: "Infrastrukturprojekt",
     description: "Projekt DB-Gleisquerung Veddel in Hamburg. Innovatives Bauvorhaben zur Verbesserung der Verkehrsinfrastruktur mit modernen Brückenbau-Lösungen.",
     distance: 8, // Größere Reichweite für Hafenbereich
-    href: "/projekte#projekt-veddel"
+    href: `${BASE_URL}#projekt-veddel`
   },
   {
     position: { x: 9.39, y: 0, z: -9.2 }, // Gebäude 2 – Plaza-Position
@@ -35,7 +37,7 @@ const BUILDINGS: BuildingInfo[] = [
     subtitle: "Neubau eines Mehrfamilienhauses",
     description: "Modernes Mehrfamilienhaus in Worms mit klarer Architektur und effizienter Bauweise.",
     distance: 4,
-    href: "/projekte#projekt-worms"
+    href: `${BASE_URL}#projekt-worms`
   }
 ];
 
@@ -174,7 +176,7 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
         </a>
 
         <a
-          href="/projekte"
+          href={BASE_URL}
           style={{
             color: 'rgba(255, 255, 255, 0.9)',
             fontSize: '14px',
