@@ -87,12 +87,14 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
     left: isMobile ? '12px' : 'auto',
     transform: isMobile ? 'none' : 'translateY(-50%)',
     maxWidth: isMobile ? 'calc(100vw - 24px)' : '400px',
-    zIndex: 1000,
+    zIndex: 10000,
     background: 'rgba(0, 0, 0, 0.6)',
     backdropFilter: 'blur(8px)',
     padding: isMobile ? '12px 14px' : '40px',
     borderRadius: isMobile ? '8px' : '4px',
-    border: '1px solid rgba(255, 255, 255, 0.05)'
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    pointerEvents: 'auto',
+    touchAction: 'auto'
   };
 
   const bottomStyle: CSSProperties = {
@@ -102,19 +104,39 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
     left: isMobile ? '12px' : '60px',
     right: isMobile ? '12px' : 'auto',
     maxWidth: isMobile ? 'calc(100vw - 24px)' : '600px',
-    zIndex: 1000,
+    zIndex: 10000,
     animation: 'fadeInSlide 0.4s ease-out',
     background: 'rgba(0, 0, 0, 0.6)',
     backdropFilter: 'blur(8px)',
     padding: isMobile ? '12px 14px' : '40px',
     borderRadius: isMobile ? '8px' : '4px',
-    border: '1px solid rgba(255, 255, 255, 0.05)'
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    pointerEvents: 'auto',
+    touchAction: 'auto'
   };
 
   const containerStyle = alwaysShow ? rightStyle : bottomStyle;
 
+  // Touch-Events stoppen, damit sie nicht zur Drohnensteuerung weitergegeben werden
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div style={containerStyle}>
+    <div 
+      style={containerStyle}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Titel-Bereich */}
       <div style={{ marginBottom: isMobile ? '8px' : '24px' }}>
         <div style={{
@@ -169,9 +191,25 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
         <a
           href={infoToShow.href || '#'}
           className="button"
-          style={{ fontSize: '14px', padding: '12px 24px' }}
+          style={{ 
+            fontSize: '14px', 
+            padding: '12px 24px',
+            pointerEvents: 'auto',
+            touchAction: 'auto',
+            position: 'relative',
+            zIndex: 10001
+          }}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+          }}
         >
           <span>→</span>
           Mehr Infos
@@ -186,10 +224,23 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
             fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
             letterSpacing: '0.3px',
             fontWeight: '400',
-            transition: 'color 0.2s'
+            transition: 'color 0.2s',
+            pointerEvents: 'auto',
+            touchAction: 'auto',
+            position: 'relative',
+            zIndex: 10001
           }}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+          }}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = '#ffb344';
           }}
@@ -203,13 +254,29 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
       )}
 
       {isMobile && (
-        <div style={{ marginTop: '8px' }}>
+        <div style={{ marginTop: '8px', pointerEvents: 'auto', touchAction: 'auto' }}>
           <a
             href={infoToShow.href || '#'}
             className="button"
-            style={{ fontSize: '12px', padding: '8px 12px' }}
+            style={{ 
+              fontSize: '12px', 
+              padding: '8px 12px',
+              pointerEvents: 'auto',
+              touchAction: 'auto',
+              position: 'relative',
+              zIndex: 10001
+            }}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+            }}
           >
             Mehr Infos
           </a>
