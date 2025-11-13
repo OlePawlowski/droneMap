@@ -170,6 +170,8 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
           href={infoToShow.href || '#'}
           className="button"
           style={{ fontSize: '14px', padding: '12px 24px' }}
+          target="_blank"
+          rel="noopener noreferrer"
         >
           <span>→</span>
           Mehr Infos
@@ -186,6 +188,8 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
             fontWeight: '400',
             transition: 'color 0.2s'
           }}
+          target="_blank"
+          rel="noopener noreferrer"
           onMouseEnter={(e) => {
             e.currentTarget.style.color = '#ffb344';
           }}
@@ -204,6 +208,8 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
             href={infoToShow.href || '#'}
             className="button"
             style={{ fontSize: '12px', padding: '8px 12px' }}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Mehr Infos
           </a>
