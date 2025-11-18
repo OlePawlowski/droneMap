@@ -960,7 +960,7 @@ export default function EmbedPage() {
           intensity={0.6} 
           color="#ffffff"
         />
-        <Environment preset="warehouse" background={false} blur={0.5} />
+        <Environment files="/hdr/warehouse.hdr" background={false} blur={0.5} />
         
         <Terrain />
         <ContactShadows 

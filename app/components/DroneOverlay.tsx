@@ -4,25 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import React from 'react';
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        src?: string;
-        alt?: string;
-        'auto-rotate'?: boolean;
-        'camera-controls'?: boolean;
-        'shadow-intensity'?: string;
-        'environment-image'?: string;
-        exposure?: string;
-        loading?: 'auto' | 'lazy' | 'eager';
-        'animation-name'?: string;
-        autoplay?: boolean;
-      }, HTMLElement>;
-    }
-  }
-}
-
 interface DroneOverlayProps {
   dronePosition: { x: number; y: number; z: number };
   droneRotation: { x: number; y: number; z: number; w: number };
@@ -92,6 +73,7 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
               modelViewer.renderer.toneMapping = THREE.AgXToneMapping;
               modelViewer.renderer.toneMappingExposure = 1.0;
             }
+            
           }, 100);
         } catch (error) {
           console.log('Tone Mapping konnte nicht gesetzt werden:', error);
@@ -122,6 +104,50 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
     }
   }, [scriptReady, modelSrc]);
 
+  // camera-orbit basierend auf Flugrichtung setzen
+  useEffect(() => {
+    if (scriptReady && modelViewerRef.current && isLoaded) {
+      const modelViewer = modelViewerRef.current;
+      try {
+        if (targetDirection) {
+          // Berechne Azimuth-Winkel basierend auf Flugrichtung
+          // targetDirection zeigt in die Flugrichtung
+          const direction = new THREE.Vector3(
+            targetDirection.x,
+            0, // Y-Komponente ignorieren für horizontale Rotation
+            targetDirection.z
+          ).normalize();
+          
+          // Berechne Winkel in Grad
+          // Atan2 gibt Winkel von -PI bis PI, wir konvertieren zu 0-360
+          let azimuth = (Math.atan2(direction.x, -direction.z) * 180) / Math.PI;
+          
+          // Normalisiere auf 0-360 Grad
+          if (azimuth < 0) {
+            azimuth += 360;
+          }
+          
+          // Drehe um 180 Grad, damit die Drohne in die richtige Richtung zeigt (nicht nach hinten)
+          azimuth = (azimuth + 180) % 360;
+          
+          // Polar-Winkel (vertikal) - 90deg = genau von oben
+          const polar = 45; // Von oben betrachten
+          const radius = 1.5; // Größerer Abstand für mehr Platz
+          
+          // Setze camera-orbit
+          // Format: "azimuth polar radius"
+          modelViewer.setAttribute('camera-orbit', `${azimuth}deg ${polar}deg ${radius}m`);
+        } else {
+          // Standard-Kamera-Position - mit polar 45deg, richtig ausgerichtet
+          // 180deg Azimuth = Drohne zeigt nach vorne (Standard-Ausrichtung)
+          modelViewer.setAttribute('camera-orbit', '180deg 45deg 1.5m');
+        }
+      } catch (error) {
+        console.log('camera-orbit konnte nicht gesetzt werden:', error);
+      }
+    }
+  }, [scriptReady, isLoaded, targetDirection]);
+
   // 3D-Position zu 2D-Bildschirmkoordinaten konvertieren
   const getScreenPosition = () => {
     // Prüfen ob wir im Browser sind
@@ -147,21 +173,10 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
 
   // Rotation basierend auf der Zielrichtung berechnen
   const getRotationStyle = () => {
-    if (!targetDirection) {
-      return { transform: 'translate(-50%, -50%)' };
-    }
-
-    // Immer zur Maus neigen, aber mehr wenn geflogen wird
-    const tiltMultiplier = isFlying ? 1.0 : 0.4; // Etwas mehr Neigung auch wenn nicht geflogen wird
-    
-    // Neigung basierend auf der X-Richtung (links/rechts)
-    const tiltX = targetDirection.x * 25 * tiltMultiplier; // Etwas mehr Neigung
-    
-    // Rotation basierend auf der Z-Richtung (vor/zurück)
-    const tiltZ = -targetDirection.z * 20 * tiltMultiplier; // Etwas mehr Neigung
-
+    // Basis-Transform: immer zentriert, keine Rotation
+    // rotateZ komplett entfernt - keine seitliche Neigung mehr
     return {
-      transform: `translate(-50%, -50%) rotateX(${tiltZ}deg) rotateZ(${tiltX}deg)`,
+      transform: 'translate(-50%, -50%)',
       transition: 'transform 0.1s ease-out'
     };
   };
@@ -171,9 +186,9 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
       style={{
         position: 'absolute',
         left: '50%',
-        top: '70%',
-        width: '180px',
-        height: '180px',
+        top: '75%',
+        width: '240px',
+        height: '240px',
         pointerEvents: 'none',
         zIndex: 1000,
         ...getRotationStyle(),
@@ -193,6 +208,7 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
         animation-name="*"
         autoplay
         skybox-image=""
+        camera-target="0m 0.1m 0m"
         style={{
           width: '100%',
           height: '100%',

@@ -15,6 +15,12 @@ declare global {
         loading?: 'auto' | 'lazy' | 'eager';
         'animation-name'?: string;
         autoplay?: boolean;
+        'camera-orbit'?: string;
+        'min-camera-orbit'?: string;
+        'max-camera-orbit'?: string;
+        'camera-target'?: string;
+        'tone-mapping'?: string;
+        'skybox-image'?: string;
       }, HTMLElement>;
     }
   }
