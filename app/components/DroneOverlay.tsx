@@ -18,6 +18,10 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
   const [modelSrc, setModelSrc] = useState<string>("/last-try.glb");
   const [isMobile, setIsMobile] = useState(false);
   const ModelViewerTag = 'model-viewer' as any;
+  const currentPolarRef = useRef<number>(45); // Aktueller Polar-Winkel für sanfte Transition (45deg = neutral)
+  const currentAzimuthRef = useRef<number>(180); // Aktueller Azimuth-Winkel für sanfte Transition
+  const animationFrameRef = useRef<number | ReturnType<typeof setTimeout> | null>(null);
+  const currentTiltRef = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 }); // Aktuelle Drohnen-Neigung
 
   useEffect(() => {
     const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
@@ -104,12 +108,28 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
     }
   }, [scriptReady, modelSrc]);
 
-  // camera-orbit basierend auf Flugrichtung setzen
+  // camera-orbit basierend auf Flugrichtung setzen - nur während des Fliegens mit sanfter Transition
   useEffect(() => {
     if (scriptReady && modelViewerRef.current && isLoaded) {
       const modelViewer = modelViewerRef.current;
+      
+      // Stoppe vorherige Animation falls vorhanden
+      if (animationFrameRef.current) {
+        if (typeof animationFrameRef.current === 'number') {
+          cancelAnimationFrame(animationFrameRef.current);
+        } else {
+          clearTimeout(animationFrameRef.current);
+        }
+      }
+      
       try {
-        if (targetDirection) {
+        let targetPolar: number;
+        let targetAzimuth: number;
+        let minPolar: number;
+        let maxPolar: number;
+        
+        // Nur aktualisieren, wenn geflogen wird
+        if (isFlying && targetDirection) {
           // Berechne Azimuth-Winkel basierend auf Flugrichtung
           // targetDirection zeigt in die Flugrichtung
           const direction = new THREE.Vector3(
@@ -128,25 +148,155 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
           }
           
           // Drehe um 180 Grad, damit die Drohne in die richtige Richtung zeigt (nicht nach hinten)
-          azimuth = (azimuth + 180) % 360;
+          targetAzimuth = (azimuth + 180) % 360;
           
-          // Polar-Winkel (vertikal) - 90deg = genau von oben
-          const polar = 45; // Von oben betrachten
-          const radius = 1.5; // Größerer Abstand für mehr Platz
+          // Polar-Winkel (vertikal) - kontinuierliche Interpolation basierend auf Flugrichtung
+          // Vorne (z = -1): 47deg
+          // Links/Rechts (z = 0): 45deg
+          // Hinten (z = 1): 43deg
+          // Kontinuierliche Interpolation in 0.1 Grad Schritten
+          // Formel: polar = 45 - 2*z (z von -1 bis 1)
+          // z = -1 → 45 - 2*(-1) = 47
+          // z = 0 → 45 - 2*0 = 45
+          // z = 1 → 45 - 2*1 = 43
+          const zComponent = targetDirection.z; // -1 (vorne) bis 1 (hinten)
+          targetPolar = 45 - (2 * zComponent);
           
-          // Setze camera-orbit
-          // Format: "azimuth polar radius"
-          modelViewer.setAttribute('camera-orbit', `${azimuth}deg ${polar}deg ${radius}m`);
+          // Runde auf 0.1 Grad Schritte für noch smoothtere Übergänge
+          targetPolar = Math.round(targetPolar * 10) / 10;
+          minPolar = targetPolar;
+          maxPolar = targetPolar;
         } else {
-          // Standard-Kamera-Position - mit polar 45deg, richtig ausgerichtet
-          // 180deg Azimuth = Drohne zeigt nach vorne (Standard-Ausrichtung)
-          modelViewer.setAttribute('camera-orbit', '180deg 45deg 1.5m');
+          // Standard-Kamera-Position - neutral, wenn nicht geflogen wird
+          targetAzimuth = 180; // Drohne zeigt nach vorne
+          targetPolar = 45; // Neutral (45deg)
+          minPolar = 45;
+          maxPolar = 45;
+        }
+        
+        // Sanfte Rotation zur Zielposition (nur für Azimuth)
+        const startAzimuth = currentAzimuthRef.current;
+        const startPolar = currentPolarRef.current;
+        const radius = 1.5;
+        
+        // Berechne kürzesten Weg für Azimuth (kann über 0/360 Grad gehen)
+        let azimuthDiff = targetAzimuth - startAzimuth;
+        if (azimuthDiff > 180) azimuthDiff -= 360;
+        if (azimuthDiff < -180) azimuthDiff += 360;
+        
+        // Wenn sich die Richtung ändert, animiere die Rotation
+        if (Math.abs(azimuthDiff) > 1) {
+          const duration = 600; // 600ms für langsamere, sanftere Rotation
+          const startTime = Date.now();
+          
+          const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Sanfte Ease-out Funktion
+            const easeProgress = 1 - Math.pow(1 - progress, 3);
+            
+            // Interpoliere Azimuth
+            const currentAzimuth = startAzimuth + azimuthDiff * easeProgress;
+            let normalizedAzimuth = currentAzimuth;
+            if (normalizedAzimuth < 0) normalizedAzimuth += 360;
+            if (normalizedAzimuth >= 360) normalizedAzimuth -= 360;
+            
+            // Polar und Azimuth interpoliert setzen
+            const currentPolar = startPolar + (targetPolar - startPolar) * easeProgress;
+            
+            modelViewer.setAttribute('camera-orbit', `${normalizedAzimuth}deg ${currentPolar}deg ${radius}m`);
+            modelViewer.setAttribute('min-camera-orbit', `auto ${minPolar}deg auto`);
+            modelViewer.setAttribute('max-camera-orbit', `auto ${maxPolar}deg auto`);
+            
+            currentAzimuthRef.current = normalizedAzimuth;
+            currentPolarRef.current = currentPolar;
+            
+            if (progress < 1) {
+              animationFrameRef.current = requestAnimationFrame(animate);
+            } else {
+              // Finale Position setzen
+              currentAzimuthRef.current = targetAzimuth;
+              currentPolarRef.current = targetPolar;
+              modelViewer.setAttribute('camera-orbit', `${targetAzimuth}deg ${targetPolar}deg ${radius}m`);
+              animationFrameRef.current = null;
+            }
+          };
+          
+          animate();
+        } else {
+          // Keine große Änderung, direkt setzen
+          modelViewer.setAttribute('camera-orbit', `${targetAzimuth}deg ${targetPolar}deg ${radius}m`);
+          modelViewer.setAttribute('min-camera-orbit', `auto ${minPolar}deg auto`);
+          modelViewer.setAttribute('max-camera-orbit', `auto ${maxPolar}deg auto`);
+          currentAzimuthRef.current = targetAzimuth;
+          currentPolarRef.current = targetPolar;
+        }
+        
+        // Leichte Neigung der Drohne selbst in Flugrichtung (nur wenn geflogen wird)
+        if (isFlying && modelViewer.scene && targetDirection) {
+          const scene = modelViewer.scene;
+          scene.traverse((object: any) => {
+            if (object.isGroup || object.isMesh) {
+              // Berechne leichte Neigung basierend auf Flugrichtung
+              // Rechts (x positiv): nach rechts neigen (positive Z-Rotation)
+              // Links (x negativ): nach links neigen (negative Z-Rotation)
+              // Vorwärts (z negativ): nach vorne neigen (negative X-Rotation)
+              // Rückwärts (z positiv): nach hinten neigen (positive X-Rotation)
+              
+              const sideTilt = targetDirection.x * 8; // Maximal 8 Grad seitliche Neigung
+              const forwardTilt = -targetDirection.z * 8; // Maximal 8 Grad vorne/hinten Neigung
+              
+              // Berechne Y-Rotation für Flugrichtung
+              const direction = new THREE.Vector3(
+                targetDirection.x,
+                0,
+                targetDirection.z
+              ).normalize();
+              const defaultForward = new THREE.Vector3(0, 0, -1);
+              const yRotationQuat = new THREE.Quaternion().setFromUnitVectors(defaultForward, direction);
+              const yRotationEuler = new THREE.Euler().setFromQuaternion(yRotationQuat);
+              
+              // Setze Rotation: X für vorne/hinten, Y für Flugrichtung, Z für seitlich
+              const tiltedRotation = new THREE.Euler(
+                forwardTilt * (Math.PI / 180), // X-Rotation: vorne/hinten Neigung
+                yRotationEuler.y, // Y-Rotation: Flugrichtung
+                sideTilt * (Math.PI / 180) // Z-Rotation: seitliche Neigung
+              );
+              object.quaternion.setFromEuler(tiltedRotation);
+            }
+          });
+        } else if (modelViewer.scene) {
+          // Wenn nicht geflogen, setze Rotation zurück (keine Neigung)
+          const scene = modelViewer.scene;
+          scene.traverse((object: any) => {
+            if (object.isGroup || object.isMesh) {
+              const currentRotation = new THREE.Euler().setFromQuaternion(object.quaternion);
+              const neutralRotation = new THREE.Euler(
+                0, // Keine X-Neigung
+                currentRotation.y, // Y bleibt für Ausrichtung
+                0 // Keine Z-Neigung
+              );
+              object.quaternion.setFromEuler(neutralRotation);
+            }
+          });
         }
       } catch (error) {
         console.log('camera-orbit konnte nicht gesetzt werden:', error);
       }
     }
-  }, [scriptReady, isLoaded, targetDirection]);
+    
+    // Cleanup: Stoppe Animation beim Unmount
+    return () => {
+      if (animationFrameRef.current) {
+        if (typeof animationFrameRef.current === 'number') {
+          cancelAnimationFrame(animationFrameRef.current);
+        } else {
+          clearTimeout(animationFrameRef.current);
+        }
+      }
+    };
+  }, [scriptReady, isLoaded, targetDirection, isFlying]);
 
   // 3D-Position zu 2D-Bildschirmkoordinaten konvertieren
   const getScreenPosition = () => {
@@ -186,9 +336,9 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
       style={{
         position: 'absolute',
         left: '50%',
-        top: '75%',
-        width: '240px',
-        height: '240px',
+        top: '70%', // Etwas höher positioniert
+        width: isMobile ? '180px' : '240px', // Auf mobil kleiner
+        height: isMobile ? '180px' : '240px', // Auf mobil kleiner
         pointerEvents: 'none',
         zIndex: 1000,
         ...getRotationStyle(),
