@@ -111,11 +111,7 @@ export default function CameraAnimation({
         if (onPhaseChange) {
           onPhaseChange('drone');
         }
-        // Zeige Drohne sofort zu Beginn der Bewegung zur Drohne
-        if (!droneShown.current && onShowDrone) {
-          droneShown.current = true;
-          onShowDrone();
-        }
+        // Drohne wird jetzt unabhängig gesteuert - nicht mehr hier
       }
       return; // Früh zurückkehren, keine Kamera-Updates in Logo-Phase
     } else {
@@ -137,8 +133,6 @@ export default function CameraAnimation({
       const droneLookTarget = droneStartPosition.current.clone().add(new THREE.Vector3(0, 0.5, 0));
       const lookTarget = new THREE.Vector3().lerpVectors(logoLookTarget, droneLookTarget, easeProgress);
       camera.lookAt(lookTarget);
-      
-      // Drohne sollte bereits zu Beginn der Phase angezeigt werden (wird in Phase-Übergang gesetzt)
       
       if (droneProgress >= 1) {
         // Animation komplett abgeschlossen - setze exakte Position wie beim normalen Drohnen-Flug

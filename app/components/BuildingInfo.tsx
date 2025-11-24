@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 
 interface BuildingInfo {
@@ -41,15 +41,30 @@ const BUILDINGS: BuildingInfo[] = [
   }
 ];
 
-export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosition: { x: number; y: number; z: number }; alwaysShow?: boolean }) {
+export default function BuildingInfo({ dronePosition, alwaysShow, showAfterDrone }: { dronePosition: { x: number; y: number; z: number }; alwaysShow?: boolean; showAfterDrone?: boolean }) {
   const [visibleInfo, setVisibleInfo] = useState<BuildingInfo | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [shouldShow, setShouldShow] = useState(false);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
     const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  // Wenn showAfterDrone gesetzt ist, warte bis die Drohnen-Animation fertig ist
+  useEffect(() => {
+    if (showAfterDrone) {
+      // Warte 1.2 Sekunden (Drohnen-Animation) + kleine Verzögerung
+      const timer = setTimeout(() => {
+        setShouldShow(true);
+      }, 1400); // 1.2s Animation + 0.2s Verzögerung
+      return () => clearTimeout(timer);
+    } else {
+      setShouldShow(true);
+    }
+  }, [showAfterDrone]);
 
   useEffect(() => {
     let found = false;
@@ -63,18 +78,32 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
       if (distance < building.distance) {
         setVisibleInfo(building);
         found = true;
+        // Lösche Timeout wenn wieder in Nähe
+        if (hideTimeoutRef.current) {
+          clearTimeout(hideTimeoutRef.current);
+          hideTimeoutRef.current = null;
+        }
         break;
       }
     }
     
-    // IMMER verstecken wenn nicht in Nähe (auch bei alwaysShow)
-    if (!found) {
+    // Verstecke erst nach 10 Sekunden Verzögerung (längere Anzeigedauer)
+    if (!found && visibleInfo) {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+      hideTimeoutRef.current = setTimeout(() => {
+        setVisibleInfo(null);
+        hideTimeoutRef.current = null;
+      }, 10000); // 10 Sekunden Verzögerung bevor ausgeblendet wird
+    } else if (!found && !visibleInfo) {
+      // Wenn keine Info angezeigt wird, setze direkt auf null
       setVisibleInfo(null);
     }
-  }, [dronePosition, alwaysShow]);
+  }, [dronePosition, alwaysShow, visibleInfo]);
 
-  // Keine Info -> nichts anzeigen
-  if (!visibleInfo) return null;
+  // Keine Info oder noch nicht anzeigen -> nichts anzeigen
+  if (!visibleInfo || !shouldShow) return null;
   
   const infoToShow = visibleInfo;
 
@@ -105,7 +134,7 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
     right: isMobile ? '12px' : 'auto',
     maxWidth: isMobile ? 'calc(100vw - 24px)' : '600px',
     zIndex: 10000,
-    animation: 'fadeInSlide 0.4s ease-out',
+    animation: 'slideUpFromBottom 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
     background: 'rgba(0, 0, 0, 0.6)',
     backdropFilter: 'blur(8px)',
     padding: isMobile ? '12px 14px' : '40px',
@@ -288,6 +317,16 @@ export default function BuildingInfo({ dronePosition, alwaysShow }: { dronePosit
           from {
             opacity: 0;
             transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes slideUpFromBottom {
+          from {
+            opacity: 0;
+            transform: translateY(100px);
           }
           to {
             opacity: 1;

@@ -9,14 +9,17 @@ interface DroneOverlayProps {
   droneRotation: { x: number; y: number; z: number; w: number };
   targetDirection?: { x: number; y: number; z: number };
   isFlying?: boolean;
+  onAnimationComplete?: () => void;
 }
 
-export default function DroneOverlay({ dronePosition, droneRotation, targetDirection, isFlying }: DroneOverlayProps) {
+export default function DroneOverlay({ dronePosition, droneRotation, targetDirection, isFlying, onAnimationComplete }: DroneOverlayProps) {
   const modelViewerRef = useRef<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
   const [modelSrc, setModelSrc] = useState<string>("/last-try.glb");
   const [isMobile, setIsMobile] = useState(false);
+  const [hasAnimatedIn, setHasAnimatedIn] = useState(false);
+  const animationStartedRef = useRef(false);
   const ModelViewerTag = 'model-viewer' as any;
   const currentPolarRef = useRef<number>(45); // Aktueller Polar-Winkel für sanfte Transition (45deg = neutral)
   const currentAzimuthRef = useRef<number>(180); // Aktueller Azimuth-Winkel für sanfte Transition
@@ -29,6 +32,20 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  // Starte Animation sofort wenn Komponente gerendert wird
+  useEffect(() => {
+    if (!animationStartedRef.current) {
+      animationStartedRef.current = true;
+      setHasAnimatedIn(true);
+      // Rufe Callback nach Animation-Dauer auf (1.2 Sekunden)
+      setTimeout(() => {
+        if (onAnimationComplete) {
+          onAnimationComplete();
+        }
+      }, 1200);
+    }
+  }, [onAnimationComplete]);
 
   useEffect(() => {
     // Google Model Viewer Script laden und auf Bereitschaft warten
@@ -64,6 +81,28 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
       const handleLoad = () => {
         setIsLoaded(true);
         
+        // Ladebalken verstecken
+        try {
+          const shadowRoot = modelViewer.shadowRoot;
+          if (shadowRoot) {
+            const progressBar = shadowRoot.querySelector('.default-progress-bar') || 
+                              shadowRoot.querySelector('#default-progress-bar') ||
+                              shadowRoot.querySelector('[part="default-progress-bar"]');
+            if (progressBar) {
+              (progressBar as HTMLElement).style.display = 'none';
+            }
+            // Auch alle anderen möglichen Ladebalken-Elemente verstecken
+            const allProgressBars = shadowRoot.querySelectorAll('[class*="progress"], [id*="progress"], [part*="progress"]');
+            allProgressBars.forEach((el: any) => {
+              if (el && el.style) {
+                el.style.display = 'none';
+              }
+            });
+          }
+        } catch (error) {
+          console.log('Ladebalken konnte nicht versteckt werden:', error);
+        }
+        
         // Tone Mapping auf AGX setzen
         try {
           // Warte kurz, damit der Renderer initialisiert ist
@@ -89,6 +128,8 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
             modelViewer.play({ animationName: animationName, repetitions: Infinity });
           });
         }
+        
+        // Animation wird bereits beim ersten Render gestartet
       };
 
       const handleError = (event: any) => {
@@ -332,42 +373,86 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
   };
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: '50%',
-        top: '70%', // Etwas höher positioniert
-        width: isMobile ? '140px' : '240px', // Auf mobil kleiner
-        height: isMobile ? '140px' : '240px', // Auf mobil kleiner
-        pointerEvents: 'none',
-        zIndex: 1000,
-        ...getRotationStyle(),
-      }}
-    >
-      {scriptReady && (
-      <ModelViewerTag
-        ref={modelViewerRef}
-        src={modelSrc}
-        alt="3D Drohne"
-        auto-rotate={false}
-        camera-controls={false}
-        shadow-intensity="0.6"
-        environment-image="neutral"
-        exposure="1.1"
-        loading="eager"
-        animation-name="*"
-        autoplay
-        skybox-image=""
-        camera-target="0m 0.1m 0m"
+    <>
+      <style>{`
+        model-viewer::part(default-ar-button),
+        model-viewer::part(post-processing),
+        model-viewer::part(interaction-prompt),
+        model-viewer::part(default-progress-bar) {
+          display: none !important;
+        }
+        model-viewer #default-ar-button,
+        model-viewer .default-ar-button,
+        model-viewer #default-progress-bar,
+        model-viewer .default-progress-bar {
+          display: none !important;
+        }
+        @keyframes droneFlyIn {
+          from {
+            top: 120%;
+            opacity: 1;
+          }
+          to {
+            top: 70%;
+            opacity: 1;
+          }
+        }
+        @keyframes droneFlyInMobile {
+          from {
+            top: 195%;
+            opacity: 1;
+          }
+          to {
+            top: 70%;
+            opacity: 1;
+          }
+        }
+        .drone-container {
+          animation: droneFlyIn 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        @media (max-width: 767px) {
+          .drone-container {
+            animation: droneFlyInMobile 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+          }
+        }
+      `}</style>
+      <div
+        className="drone-container"
         style={{
-          width: '100%',
-          height: '100%',
-          background: 'transparent',
-          filter: 'none',
+          position: 'absolute',
+          left: '50%',
+          width: isMobile ? '140px' : '240px', // Auf mobil kleiner
+          height: isMobile ? '140px' : '240px', // Auf mobil kleiner
+          pointerEvents: 'none',
+          zIndex: 1000,
+          ...getRotationStyle(),
         }}
-      />)}
-      {/* Loading-Hinweis entfernt */}
-    </div>
+      >
+        {scriptReady && (
+        <ModelViewerTag
+          ref={modelViewerRef}
+          src={modelSrc}
+          alt="3D Drohne"
+          auto-rotate={false}
+          camera-controls={false}
+          shadow-intensity="0.6"
+          environment-image="neutral"
+          exposure="1.1"
+          loading="eager"
+          animation-name="*"
+          autoplay
+          skybox-image=""
+          camera-target="0m 0.1m 0m"
+          style={{
+            width: '100%',
+            height: '100%',
+            background: 'transparent',
+            filter: 'none',
+          }}
+        />)}
+        {/* Loading-Hinweis entfernt */}
+      </div>
+    </>
   );
 }
 

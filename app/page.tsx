@@ -15,11 +15,11 @@ function IntroDroneModel({
   onPositionUpdate: (pos: THREE.Vector3) => void;
 }) {
   const droneRef = useRef<THREE.Group>(null);
-  const endPos = useRef(new THREE.Vector3(0, 0.6, 7)); // Endposition - Drohne ist bereits hier (niedriger für Flug durch die Welt)
+  const endPos = useRef(new THREE.Vector3(0, 0.6, 7)); // Endposition - Drohne ist bereits hier
 
   useEffect(() => {
     if (droneRef.current) {
-      // Setze Drohne direkt an ihre Startposition - sie ist bereits da
+      // Setze Drohne direkt an ihre Startposition
       droneRef.current.position.copy(endPos.current);
       // Update Position für Overlay
       onPositionUpdate(endPos.current.clone());
@@ -2000,9 +2000,11 @@ export default function Home() {
   const [introCompleted, setIntroCompleted] = useState(false);
   const [startCameraAnimation, setStartCameraAnimation] = useState(true); // Starte sofort beim Intro
   const [cameraPositionSet, setCameraPositionSet] = useState(false);
-  const [showDrone, setShowDrone] = useState(false); // Drohne erst zeigen, wenn Kamera sich bewegt
+  const [showDrone, setShowDrone] = useState(false); // Drohne erst zeigen, wenn sie einfliegen soll
   const [introDroneAnimation, setIntroDroneAnimation] = useState(true); // Intro-Animation aktiv
   const [cameraPhase, setCameraPhase] = useState<'logo' | 'drone'>('logo'); // Kamera-Phase verfolgen
+  const [droneFlyInStarted, setDroneFlyInStarted] = useState(false); // Drohnen-Einflug gestartet
+  const [droneAnimationComplete, setDroneAnimationComplete] = useState(false); // Drohnen-Animation abgeschlossen
   const camRef = useRef<THREE.PerspectiveCamera | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showHint, setShowHint] = useState(false);
@@ -2015,13 +2017,33 @@ export default function Home() {
     };
   }, []);
 
-  // Zeige die Anleitung NACH dem Intro für ~2.6s
+  // Zeige die Anleitung NACH dem Intro UND nach der Drohnen-Animation für 4.5 Sekunden
   useEffect(() => {
-    if (!introCompleted) return;
-    setShowHint(true);
-    const t = setTimeout(() => setShowHint(false), 2600);
-    return () => clearTimeout(t);
-  }, [introCompleted]);
+    if (!introCompleted || !droneAnimationComplete) return;
+    // Warte kurz nach der Drohnen-Animation, dann zeige Anleitung
+    const showTimer = setTimeout(() => {
+      setShowHint(true);
+    }, 200); // Kleine Verzögerung nach Drohnen-Animation
+    // Verstecke Anleitung nach 4.5 Sekunden
+    const hideTimer = setTimeout(() => {
+      setShowHint(false);
+    }, 4700); // 200ms Verzögerung + 4.5 Sekunden Anzeige
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [introCompleted, droneAnimationComplete]);
+
+  // Starte Drohnen-Einflug unabhängig von Kamera-Animation (nach 2 Sekunden)
+  useEffect(() => {
+    if (!droneFlyInStarted) {
+      const timer = setTimeout(() => {
+        setShowDrone(true);
+        setDroneFlyInStarted(true);
+      }, 2000); // Starte nach 2 Sekunden (gleichzeitig mit Kamera-Phase 2)
+      return () => clearTimeout(timer);
+    }
+  }, [droneFlyInStarted]);
 
   const handlePositionUpdate = (pos: THREE.Vector3, rot: THREE.Quaternion) => {
     const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -2068,10 +2090,22 @@ export default function Home() {
       {introDroneAnimation && (
         <IntroAnimation onComplete={handleIntroComplete} />
       )}
-      {/* Kurzes Onboarding-Overlay (2.6s) */}
+      {/* Steuerungs-Anleitung - erscheint nach Drohnen-Animation von unten */}
       {showHint && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pointerEvents: 'none', padding: 16, paddingBottom: isMobile ? 12 : 16, zIndex: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,0,0,0.55)', color: 'white', padding: '12px 14px', borderRadius: 10, boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 12, 
+            background: 'rgba(0,0,0,0.55)', 
+            color: 'white', 
+            padding: '12px 14px', 
+            borderRadius: 10, 
+            boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+            animation: 'slideUpFromBottomHint 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+            transform: 'translateY(100px)',
+            opacity: 0
+          }}>
             {/* Richtungskreuz */}
             <div style={{ position: 'relative', width: 40, height: 40, opacity: 0.9 }}>
               <div style={{ position: 'absolute', left: '50%', top: 0, transform: 'translateX(-50%)', width: 6, height: 14, borderRadius: 3, background: '#ffb344', boxShadow: '0 0 12px #ffb344' }} />
@@ -2119,10 +2153,6 @@ export default function Home() {
             onComplete={handleCameraAnimationComplete}
             onPhaseChange={(phase) => {
               setCameraPhase(phase);
-            }}
-            onShowDrone={() => {
-              // Zeige Drohne erst, wenn Kamera fast an der Endposition ist
-              setShowDrone(true);
             }}
           />
         )}
@@ -2230,19 +2260,23 @@ export default function Home() {
         </group>
       </Canvas>
       
-      {/* Drohne als Overlay - nur nach Animation sichtbar */}
-      {showDrone && (
+      {/* Drohne als Overlay - sichtbar wenn Kamera-Animation fertig ist, startet bei top: 120% */}
+      {introCompleted && (
       <DroneOverlay 
         dronePosition={{ x: dronePosition.x, y: dronePosition.y, z: dronePosition.z }}
         droneRotation={{ x: droneRotation.x, y: droneRotation.y, z: droneRotation.z, w: droneRotation.w }}
         targetDirection={{ x: targetDirection.x, y: targetDirection.y, z: targetDirection.z }}
         isFlying={isFlying}
+        onAnimationComplete={() => setDroneAnimationComplete(true)}
       />
       )}
       
-      {/* Gebäude-Informationen - erst nach Intro */}
-      {introCompleted && (
-        <BuildingInfo dronePosition={{ x: dronePosition.x, y: dronePosition.y, z: dronePosition.z }} />
+      {/* Gebäude-Informationen - erst nach Intro UND nach Drohnen-Animation */}
+      {introCompleted && droneAnimationComplete && (
+        <BuildingInfo 
+          dronePosition={{ x: dronePosition.x, y: dronePosition.y, z: dronePosition.z }} 
+          showAfterDrone={true}
+        />
       )}
       
       {/* UI-Menü und Kamera-Bookmarks entfernt */}
@@ -2296,6 +2330,18 @@ export default function Home() {
           }}></div>
         ))}
       </div>
+      <style jsx>{`
+        @keyframes slideUpFromBottomHint {
+          from {
+            opacity: 0;
+            transform: translateY(100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

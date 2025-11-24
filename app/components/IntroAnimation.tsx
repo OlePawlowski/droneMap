@@ -10,8 +10,18 @@ export default function IntroAnimation({
   const [showOverlay, setShowOverlay] = useState(true);
   const [opacity, setOpacity] = useState(1);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isDesktop, setIsDesktop] = useState(false);
   const startTime = useRef(Date.now());
   const hasCalledComplete = useRef(false);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
 
   useEffect(() => {
     // Ladescreen sollte nur so lange sein, wie das Programm braucht zu laden
@@ -55,80 +65,132 @@ export default function IntroAnimation({
   if (!showOverlay) return null;
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: 10000,
-        background: 'rgba(0, 0, 0, 0.95)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: opacity,
-        transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-        pointerEvents: opacity > 0.1 ? 'auto' : 'none',
-      }}
-    >
-      {/* Logo */}
-      <div style={{
-        marginBottom: '40px',
-        opacity: opacity,
-      }}>
-        <img 
-          src="/logo-animated.svg" 
-          alt="Logo" 
+    <>
+      <style>{`
+        @media (min-width: 768px) {
+          .loading-logo-container {
+            width: 700px !important;
+            height: 350px !important;
+          }
+          .loading-logo-img {
+            height: 350px !important;
+            max-width: 700px !important;
+          }
+          .loading-spinner-container {
+            top: calc(50% + 180px) !important;
+            width: 40px !important;
+            height: 40px !important;
+          }
+          .loading-spinner-svg {
+            width: 40px !important;
+            height: 40px !important;
+          }
+        }
+      `}</style>
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 10000,
+          background: 'rgba(0, 0, 0, 0.95)',
+          opacity: opacity,
+          transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+          pointerEvents: opacity > 0.1 ? 'auto' : 'none',
+        }}
+      >
+        {/* Logo - absolut vertikal zentriert, unabhängig vom Ladekreis */}
+        <div 
+          className="loading-logo-container"
           style={{
-            height: '120px',
-            width: 'auto',
-            filter: 'drop-shadow(0 0 20px rgba(255, 179, 68, 0.5))',
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            opacity: opacity,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '280px', // Mobile: Größere Breite für größeres Logo
+            height: '140px', // Mobile: Größere Höhe für größeres Logo
+            marginTop: 0, // Explizit setzen
           }}
-          onError={(e) => {
-            // Fallback wenn Logo nicht gefunden wird
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      </div>
-
-      {/* Ladekreis mit animiertem Rand */}
-      <div style={{
-        width: '80px',
-        height: '80px',
-        opacity: opacity,
-        position: 'relative',
-      }}>
-        <svg width="80" height="80" style={{ transform: 'rotate(-90deg)' }}>
-          {/* Hintergrund-Kreis */}
-          <circle
-            cx="40"
-            cy="40"
-            r="35"
-            fill="none"
-            stroke="rgba(255, 255, 255, 0.1)"
-            strokeWidth="4"
-          />
-          {/* Animierter Rand-Kreis */}
-          <circle
-            cx="40"
-            cy="40"
-            r="35"
-            fill="none"
-            stroke="#ffb344"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray={2 * Math.PI * 35}
-            strokeDashoffset={2 * Math.PI * 35 * (1 - loadingProgress)}
+        >
+          <img 
+            src="/logo-animated-cropped.svg" 
+            alt="Logo"
+            className="loading-logo-img"
             style={{
-              filter: 'drop-shadow(0 0 10px rgba(255, 179, 68, 0.8))',
-              transition: 'stroke-dashoffset 0.1s linear',
+              height: '140px', // Mobile: Größeres Logo
+              width: 'auto',
+              maxWidth: '280px', // Mobile: Größeres Logo
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 0 20px rgba(255, 179, 68, 0.5))',
+              display: 'block', // Verhindert Layout-Sprünge
+              visibility: 'visible', // Explizit sichtbar
+            }}
+            onLoad={(e) => {
+              // Stelle sicher, dass das Bild sofort die richtige Größe hat
+              const img = e.target as HTMLImageElement;
+              const isDesktop = window.innerWidth >= 768;
+              img.style.height = isDesktop ? '350px' : '140px';
+            }}
+            onError={(e) => {
+              // Fallback wenn Logo nicht gefunden wird
+              (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
-        </svg>
+        </div>
+
+        {/* Ladekreis mit animiertem Rand - darunter, unabhängig positioniert */}
+        <div 
+          className="loading-spinner-container"
+          style={{
+            position: 'absolute',
+            top: 'calc(50% + 60px)', // Mobile: Reduzierter Abstand unterhalb des zentrierten Logos
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '32px', // Mobile
+            height: '32px', // Mobile
+            opacity: opacity,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: 0, // Explizit setzen
+          }}
+        >
+          <svg className="loading-spinner-svg" width={isDesktop ? "40" : "32"} height={isDesktop ? "40" : "32"} style={{ transform: 'rotate(-90deg)' }}>
+            {/* Hintergrund-Kreis */}
+            <circle
+              cx={isDesktop ? "20" : "16"}
+              cy={isDesktop ? "20" : "16"}
+              r={isDesktop ? "18" : "14"}
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.1)"
+              strokeWidth="2.5"
+            />
+            {/* Animierter Rand-Kreis */}
+            <circle
+              cx={isDesktop ? "20" : "16"}
+              cy={isDesktop ? "20" : "16"}
+              r={isDesktop ? "18" : "14"}
+              fill="none"
+              stroke="#ffb344"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray={isDesktop ? 2 * Math.PI * 18 : 2 * Math.PI * 14}
+              strokeDashoffset={(isDesktop ? 2 * Math.PI * 18 : 2 * Math.PI * 14) * (1 - loadingProgress)}
+              style={{
+                filter: 'drop-shadow(0 0 10px rgba(255, 179, 68, 0.8))',
+                transition: 'stroke-dashoffset 0.1s linear',
+              }}
+            />
+          </svg>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
