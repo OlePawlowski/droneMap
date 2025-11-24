@@ -1348,7 +1348,38 @@ function PlaceholderBuildings() {
     // Füge zwei kleine Gebäude weiter rechts hinzu
     buildingList.push(...smallBuildingsRight);
     
-    return buildingList;
+    // Filtere Gebäude unter der Brücke und außerhalb der Karte heraus, verschiebe Gebäude hinten rechts neben dem Hafen nach vorne
+    const filteredBuildings = buildingList.map((building) => {
+      let x = building.x;
+      let z = building.z;
+      
+      // Entferne Gebäude außerhalb der Kartenwelt
+      const mapSize = 12;
+      if (Math.abs(x) > mapSize || Math.abs(z) > mapSize) {
+        return null;
+      }
+      
+      // Hafen ist bei x=-8, z=0
+      // Wasser erstreckt sich von z=-12 bis z=12, Breite 8.4
+      // Entferne nur Gebäude auf dem Wasser (unter der Brücke)
+      // Wasser-Bereich: x von -8-4.2=-12.2 bis -8+4.2=-3.8, z von -12 bis 12
+      // Verwende genauere Grenzen, damit Gebäude rechts vom Wasser nicht entfernt werden
+      const isOnWater = x >= -12.2 && x <= -3.8 && z >= -12 && z <= 12;
+      if (isOnWater) {
+        return null;
+      }
+      
+      // Verschiebe Gebäude hinten rechts neben dem Hafen nach vorne (wenn z < -10)
+      // Hafen ist bei x=-8, rechts davon wäre x > -8
+      if (x > -8 && z < -10) {
+        // Verschiebe sie etwas weiter nach vorne (z wird größer)
+        z = -4; // Verschiebe sie auf z=-4 statt z < -10 (6 Einheiten nach vorne)
+      }
+      
+      return { ...building, x, z };
+    }).filter((building): building is typeof buildingList[0] => building !== null);
+    
+    return filteredBuildings;
   }, []);
   
   return (
