@@ -309,8 +309,8 @@ function ModernCity() {
     // Logo noch kleiner machen
     cloned.scale.setScalar(0.35);
     
-    // Logo auf Boden positionieren (etwas nach links und ganz bisschen nach vorne)
-    cloned.position.set(8.0, 0, 5.0);
+    // Logo auf Boden positionieren (bei Gebäude-1-Position)
+    cloned.position.set(0, 0, 6);
     
     // Logo horizontal ausrichten
     cloned.rotation.x = -Math.PI / 2;
@@ -378,11 +378,11 @@ function ModernCity() {
       <primitive ref={logoRef} object={logoRefMemo} />
       
       {/* Ladebalken unter dem Logo */}
-      <LoadingBar position={[8.0, -0.12, 5.0]} />
+      <LoadingBar position={[0, -0.12, 6]} />
       
       {/* Sanftes Punktlicht über dem Logo */}
       <pointLight
-        position={[8.0, 4, 5.0]}
+        position={[0, 4, 6]}
         color="#ffb344"
         intensity={2.5}
         distance={12}
@@ -1423,7 +1423,7 @@ function BuildingModel() {
   }, [scene]);
 
   return (
-    <group position={[0, 0, 8]} rotation={[0, Math.PI * 0.5, 0]} scale={[2.5, 2.5, 2.5]}>
+    <group position={[8.0, 0, 7]} rotation={[0, Math.PI * 0.5, 0]} scale={[2.5, 2.5, 2.5]}>
       <primitive object={root} />
     </group>
   );
@@ -1672,8 +1672,8 @@ function PlazaArea() {
   // Dezente Plaza um das Hauptgebäude
   return (
     <group>
-      {/* Platzfläche - verschoben zu z = +8 und in die Mitte */}
-      <mesh position={[0, 0.015, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {/* Platzfläche - bei Gebäude 1 (z = 7) */}
+      <mesh position={[8.0, 0.015, 7]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[3.8, 48]} />
         <meshStandardMaterial 
           color="#000000" 
@@ -1684,8 +1684,8 @@ function PlazaArea() {
           envMapIntensity={0.5}
         />
       </mesh>
-      {/* Markierungsring - verschoben zu z = +8 und in die Mitte mit Orange-Glühen */}
-      <mesh position={[0, 0.017, 8]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Markierungsring - bei Gebäude 1 (z = 7) mit Orange-Glühen */}
+      <mesh position={[8.0, 0.017, 7]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.4, 3.6, 64]} />
         <meshStandardMaterial 
           color="#ffb344" 

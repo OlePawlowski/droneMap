@@ -16,7 +16,7 @@ const BASE_URL = "https://statikbüro24.de/projekte.html";
 
 const BUILDINGS: BuildingInfo[] = [
   {
-    position: { x: 0, y: 0, z: 3 }, // Gebäude 1 - sichtbare Position
+    position: { x: 8.0, y: 0, z: 7 }, // Gebäude 1 - aktuelle Position
     title: "Berlin Tempelhof",
     subtitle: "Das Wohnprojekt",
     description: "Neubau eines 11-Parteienhauses in Berlin Tempelhof mit moderner Bauweise und nachhaltigen Materialien. Das Projekt zeichnet sich durch innovative architektonische Lösungen und energieeffiziente Bauweise aus.",

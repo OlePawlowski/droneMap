@@ -23,8 +23,8 @@ export default function CameraAnimation({
   const phase = useRef<'logo' | 'drone'>('logo'); // Zwei Phasen: Logo und Drohne
   const droneShown = useRef(false); // Track ob Drohne bereits angezeigt wurde
   
-  // Logo-Position in der Szene (aus ModernCity Komponente)
-  const logoPos = useRef(new THREE.Vector3(8.0, 0.1, 5.0));
+  // Logo-Position in der Szene (bei Gebäude-1-Position)
+  const logoPos = useRef(new THREE.Vector3(0, 0.1, 6));
   
   // Startposition: Kamera aus Vogelperspektive genau über dem Logo
   const startPos = useRef(new THREE.Vector3(

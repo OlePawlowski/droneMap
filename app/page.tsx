@@ -309,8 +309,8 @@ function ModernCity() {
     // Logo noch kleiner machen
     cloned.scale.setScalar(0.35);
     
-    // Logo auf Boden positionieren (etwas nach links und ganz bisschen nach vorne)
-    cloned.position.set(8.0, 0, 5.0);
+    // Logo auf Boden positionieren (bei Gebäude-1-Position)
+    cloned.position.set(0, 0, 6);
     
     // Logo horizontal ausrichten
     cloned.rotation.x = -Math.PI / 2;
@@ -378,11 +378,11 @@ function ModernCity() {
       <primitive ref={logoRef} object={logoRefMemo} />
       
       {/* Ladebalken unter dem Logo */}
-      <LoadingBar position={[8.0, -0.12, 5.0]} />
+      <LoadingBar position={[0, -0.12, 6]} />
       
       {/* Sanftes Punktlicht über dem Logo */}
       <pointLight
-        position={[8.0, 4, 5.0]}
+        position={[0, 4, 6]}
         color="#ffb344"
         intensity={2.5}
         distance={12}
@@ -482,12 +482,12 @@ function PlaceholderBuildings() {
     
     // Bereiche, die bereits belegt sind (mit größerem Puffer)
     const occupiedAreas: Array<{ x: number; z: number; radius: number }> = [
-      { x: 0, z: 8, radius: 4 },        // Gebäude 1 (mit Puffer)
+      { x: 8.0, z: 7, radius: 3 },        // Gebäude 1 (mit größerem Puffer, weniger eingekesselt)
       { x: 9.39, z: -9.2, radius: 4 },  // Gebäude 2 (mit Puffer)
-      { x: 8.0, z: 5.0, radius: 3 },    // Logo (mit Puffer)
+      { x: 0, z: 6, radius: 2.5 },    // Logo (mit moderatem Puffer - Mittelwert)
       { x: -8, z: 0, radius: 6 },       // Hafen/Brücke (mit Puffer)
       { x: -8, z: 6, radius: 3 },       // Boot (mit Puffer)
-      { x: 0, z: 8, radius: 3 },        // Plaza (mit Puffer)
+      { x: 8.0, z: 7, radius: 3 },        // Plaza (mit größerem Puffer, bei Gebäude 1)
     ];
     
     // Container-Bereiche
@@ -507,7 +507,11 @@ function PlaceholderBuildings() {
       
       return !occupiedAreas.some(area => {
         const dist = Math.sqrt((x - area.x) ** 2 + (z - area.z) ** 2);
-        return dist < (area.radius + radius + 1); // Extra Puffer
+        // Für Gebäude vor Gebäude 1 (z > 9, x um 8.0): lockerer Puffer
+        if (z > 9 && Math.abs(x - 8.0) < 5) {
+          return dist < (area.radius + radius + 0.3); // Sehr kleiner Puffer für diesen Bereich
+        }
+        return dist < (area.radius + radius + 1); // Extra Puffer für andere Bereiche
       });
     };
     
@@ -524,13 +528,17 @@ function PlaceholderBuildings() {
       return seed2 / 233280;
     };
     
-    // Generiere Gebäude hinter Gebäude 1 (z < 8, x zwischen -4 und 4)
-    for (let z = 2; z <= 6; z += 1.2) {
-      for (let x = -3; x <= 3; x += 1.2) {
-        const offsetX = (random2() - 0.5) * 0.3;
-        const offsetZ = (random2() - 0.5) * 0.3;
+    // Generiere Gebäude hinter Gebäude 1 (z < 8, x zwischen -4 und 4) - reduzierte Dichte
+    for (let z = 2; z <= 6; z += 2.0) {
+      for (let x = -3; x <= 3; x += 2.0) {
+        const offsetX = (random2() - 0.5) * 0.1; // Reduzierter Offset für ordentlichere Anordnung
+        const offsetZ = (random2() - 0.5) * 0.1;
         const posX = x + offsetX;
         const posZ = z + offsetZ;
+        
+        // Logo und Gebäude-1 explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
+        const tooCloseToBuilding1 = Math.sqrt((posX - 8.0) ** 2 + (posZ - 7) ** 2) < 3.0; // Größerer Abstand
         
         // Liegende Gebäude: breiter/flacher statt hoch
         const baseWidth = 0.8 + random2() * 1.2;
@@ -538,7 +546,7 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random2() * 0.8; // Viel niedriger
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo && !tooCloseToBuilding1) {
           const numParts = random2() > 0.5 ? 2 : (random2() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -564,7 +572,7 @@ function PlaceholderBuildings() {
     }
     
     // Generiere Gebäude in einem Grid
-    const gridSize = 2.5; // Kleinerer Abstand
+    const gridSize = 2.5; // Abstand
     const mapSize = 12; // Größe der Karte
     
     // Seed-basierter Zufallsgenerator für konsistente Werte
@@ -576,10 +584,12 @@ function PlaceholderBuildings() {
     
     for (let x = -mapSize; x <= mapSize; x += gridSize) {
       for (let z = -mapSize; z <= mapSize; z += gridSize) {
-        const offsetX = (random() - 0.5) * 0.6;
-        const offsetZ = (random() - 0.5) * 0.6;
-        const posX = x + offsetX;
-        const posZ = z + offsetZ;
+        // Keine zufälligen Offsets für strukturiertere Anordnung
+        const posX = x;
+        const posZ = z;
+        
+        // Logo explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
         
         // Liegende Gebäude: breiter/flacher statt hoch
         const baseWidth = 0.7 + random() * 1.0;
@@ -587,7 +597,7 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random() * 0.9; // Viel niedriger
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo) {
           // Komplexeres Design: mehrere Teile pro Gebäude
           const numParts = random() > 0.5 ? 2 : (random() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
@@ -627,12 +637,15 @@ function PlaceholderBuildings() {
     };
     
     // Generiere mehr Gebäude in der Mitte hinten (z zwischen 0 und 6, x zwischen -2 und 2)
-    for (let z = 0; z <= 6; z += 1.0) {
-      for (let x = -2; x <= 2; x += 1.0) {
-        const offsetX = (random3() - 0.5) * 0.3;
-        const offsetZ = (random3() - 0.5) * 0.3;
+    for (let z = 0; z <= 6; z += 1.2) {
+      for (let x = -2; x <= 2; x += 1.2) {
+        const offsetX = (random3() - 0.5) * 0.1; // Reduzierter Offset
+        const offsetZ = (random3() - 0.5) * 0.1;
         const posX = x + offsetX;
         const posZ = z + offsetZ;
+        
+        // Logo explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
         
         // Liegende Gebäude
         const baseWidth = 0.7 + random3() * 1.0;
@@ -640,7 +653,7 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random3() * 0.8;
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo) {
           const numParts = random3() > 0.5 ? 2 : (random3() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -679,12 +692,22 @@ function PlaceholderBuildings() {
     };
     
     // Generiere Gebäude zwischen Gebäude 1 (z=8) und Mitte (z=0) - größerer Bereich nach links
-    for (let z = 0.5; z <= 7.5; z += 0.7) {
-      for (let x = -7; x <= 4; x += 0.7) {
-        const offsetX = (random4() - 0.5) * 0.3;
-        const offsetZ = (random4() - 0.5) * 0.3;
-        const posX = x + offsetX;
-        const posZ = z + offsetZ;
+    // Reduziert zwischen Logo (z=6) und Gebäude-1 (z=7)
+    for (let z = 0.5; z <= 7.5; z += 1.0) {
+      for (let x = -7; x <= 4; x += 1.0) {
+        // Überspringe den Bereich zwischen Logo (z=6) und Gebäude-1 (z=7) - weniger Dichte
+        const isBetweenLogoAndBuilding1 = z >= 5.8 && z <= 7.2 && x >= 0 && x <= 8;
+        if (isBetweenLogoAndBuilding1 && random4() > 0.3) continue; // 70% weniger Gebäude in diesem Bereich
+        
+        // Keine Offsets für strukturiertere Anordnung
+        const posX = x;
+        const posZ = z;
+        
+        // Logo explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
+        
+        // Gebäude-1 vermeiden
+        const tooCloseToBuilding1 = Math.sqrt((posX - 8.0) ** 2 + (posZ - 7) ** 2) < 2.5;
         
         // Liegende Gebäude
         const baseWidth = 0.7 + random4() * 1.0;
@@ -692,16 +715,16 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random4() * 0.8;
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
-          const numParts = random4() > 0.5 ? 2 : (random4() > 0.3 ? 3 : 1);
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo && !tooCloseToBuilding1) {
+          const numParts = 1; // Einfacher für Struktur
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
           for (let p = 0; p < numParts; p++) {
-            const partWidth = baseWidth * (0.7 + random4() * 0.6);
-            const partDepth = baseDepth * (0.7 + random4() * 0.6);
-            const partHeight = baseHeight * (0.8 + random4() * 0.4);
-            const partOffsetX = (random4() - 0.5) * baseWidth * 0.5;
-            const partOffsetZ = (random4() - 0.5) * baseDepth * 0.5;
+            const partWidth = baseWidth;
+            const partDepth = baseDepth;
+            const partHeight = baseHeight;
+            const partOffsetX = 0;
+            const partOffsetZ = 0;
             
             parts.push({
               width: partWidth,
@@ -731,12 +754,15 @@ function PlaceholderBuildings() {
     };
     
     // Generiere Gebäude links von der Mitte (x < 0, z um 0)
-    for (let z = -2; z <= 2; z += 0.8) {
-      for (let x = -6; x <= -1; x += 0.8) {
-        const offsetX = (random5() - 0.5) * 0.3;
-        const offsetZ = (random5() - 0.5) * 0.3;
+    for (let z = -2; z <= 2; z += 1.0) {
+      for (let x = -6; x <= -1; x += 1.0) {
+        const offsetX = (random5() - 0.5) * 0.1; // Reduzierter Offset
+        const offsetZ = (random5() - 0.5) * 0.1;
         const posX = x + offsetX;
         const posZ = z + offsetZ;
+        
+        // Logo explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
         
         // Liegende Gebäude
         const baseWidth = 0.7 + random5() * 1.0;
@@ -744,7 +770,7 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random5() * 0.8;
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo) {
           const numParts = random5() > 0.5 ? 2 : (random5() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -783,12 +809,20 @@ function PlaceholderBuildings() {
     };
     
     // Generiere Gebäude zwischen Gebäude 1 (z=8) und Hälfte (z=4) auf der linken Seite (x < 0)
-    for (let z = 4; z <= 7; z += 0.8) {
-      for (let x = -6; x <= -1; x += 0.8) {
-        const offsetX = (random6() - 0.5) * 0.3;
-        const offsetZ = (random6() - 0.5) * 0.3;
+    // Reduziert zwischen Logo (z=6) und Gebäude-1 (z=7)
+    for (let z = 4; z <= 7; z += 1.0) {
+      for (let x = -6; x <= -1; x += 1.0) {
+        // Reduziere Dichte zwischen Logo und Gebäude-1
+        const isBetweenLogoAndBuilding1 = z >= 5.8 && z <= 7.2;
+        if (isBetweenLogoAndBuilding1 && random6() > 0.4) continue; // 60% weniger Gebäude in diesem Bereich
+        
+        const offsetX = (random6() - 0.5) * 0.1; // Reduzierter Offset
+        const offsetZ = (random6() - 0.5) * 0.1;
         const posX = x + offsetX;
         const posZ = z + offsetZ;
+        
+        // Logo explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
         
         // Liegende Gebäude
         const baseWidth = 0.7 + random6() * 1.0;
@@ -796,7 +830,7 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random6() * 0.8;
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo) {
           const numParts = random6() > 0.5 ? 2 : (random6() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -835,12 +869,15 @@ function PlaceholderBuildings() {
     };
     
     // Generiere Gebäude zwischen Wasser (x=-8) und horizontaler Mitte (x=0)
-    for (let x = -7; x <= -1; x += 0.8) {
-      for (let z = -3; z <= 3; z += 0.8) {
-        const offsetX = (random7() - 0.5) * 0.3;
-        const offsetZ = (random7() - 0.5) * 0.3;
+    for (let x = -7; x <= -1; x += 1.0) {
+      for (let z = -3; z <= 3; z += 1.0) {
+        const offsetX = (random7() - 0.5) * 0.1; // Reduzierter Offset
+        const offsetZ = (random7() - 0.5) * 0.1;
         const posX = x + offsetX;
         const posZ = z + offsetZ;
+        
+        // Logo explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
         
         // Liegende Gebäude
         const baseWidth = 0.7 + random7() * 1.0;
@@ -848,7 +885,7 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random7() * 0.8;
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo) {
           const numParts = random7() > 0.5 ? 2 : (random7() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -873,7 +910,7 @@ function PlaceholderBuildings() {
       }
     }
     
-    // Zusätzliche Gebäude vor Gebäude 1 (z > 8)
+    // Zusätzliche Gebäude vor Gebäude 1 (bei x=8.0, z zwischen 9 und 10 - weiter vorne)
     const buildingsBeforeBuilding1: Array<{ 
       x: number; 
       z: number; 
@@ -886,21 +923,73 @@ function PlaceholderBuildings() {
       return seed8 / 233280;
     };
     
-    // Generiere Gebäude vor Gebäude 1 (z > 8, also vor dem Gebäude)
-    for (let z = 9; z <= 12; z += 0.8) {
-      for (let x = -3; x <= 3; x += 0.8) {
-        const offsetX = (random8() - 0.5) * 0.3;
-        const offsetZ = (random8() - 0.5) * 0.3;
+    // Generiere Gebäude vor Gebäude 1 (bei x weiter nach links, z zwischen 9.5 und 10.5)
+    // Zwei zusätzliche Gebäude davor (eines links von Gebäude 1, kleiner)
+    const additionalBuildings = [
+      { x: 6.0, z: 9.8 },  // Links von Gebäude 1 (kleiner)
+      { x: 8.5, z: 10.2 }
+    ];
+    
+    additionalBuildings.forEach((pos, index) => {
+      const offsetX = (random8() - 0.5) * 0.2;
+      const offsetZ = (random8() - 0.5) * 0.2;
+      const posX = pos.x + offsetX;
+      const posZ = pos.z + offsetZ;
+      
+      // Links von Gebäude 1 (index 0): kleiner
+      const isLeftOfBuilding1 = index === 0;
+      const baseWidth = isLeftOfBuilding1 ? (0.3 + random8() * 0.4) : (0.5 + random8() * 0.7);
+      const baseDepth = isLeftOfBuilding1 ? (0.3 + random8() * 0.4) : (0.5 + random8() * 0.7);
+      const baseHeight = isLeftOfBuilding1 ? (0.2 + random8() * 0.4) : (0.3 + random8() * 0.6);
+      const radius = Math.max(baseWidth, baseDepth) / 2;
+      
+      // Logo vermeiden - strenger
+      const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
+      
+      if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo) {
+        const numParts = random8() > 0.5 ? 2 : (random8() > 0.3 ? 3 : 1);
+        const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+        
+        for (let p = 0; p < numParts; p++) {
+          const partWidth = baseWidth * (0.7 + random8() * 0.6);
+          const partDepth = baseDepth * (0.7 + random8() * 0.6);
+          const partHeight = baseHeight * (0.8 + random8() * 0.4);
+          const partOffsetX = (random8() - 0.5) * baseWidth * 0.5;
+          const partOffsetZ = (random8() - 0.5) * baseDepth * 0.5;
+          
+          parts.push({
+            width: partWidth,
+            depth: partDepth,
+            height: partHeight,
+            offsetX: partOffsetX,
+            offsetZ: partOffsetZ
+          });
+        }
+        
+        buildingsBeforeBuilding1.push({ x: posX, z: posZ, parts });
+      }
+    });
+    
+    // Weitere Gebäude vor Gebäude 1 (bei x weiter nach links, z zwischen 9.5 und 11 - weiter vorne, weniger dicht)
+    // Reduzierte Dichte - größere Schrittweiten
+    for (let z = 9.5; z <= 11.0; z += 1.8) {
+      for (let x = 5.0; x <= 10.0; x += 1.8) {
+        const offsetX = (random8() - 0.5) * 0.1; // Reduzierter Offset für ordentlichere Anordnung
+        const offsetZ = (random8() - 0.5) * 0.1;
         const posX = x + offsetX;
         const posZ = z + offsetZ;
         
-        // Liegende Gebäude
-        const baseWidth = 0.7 + random8() * 1.0;
-        const baseDepth = 0.7 + random8() * 1.0;
-        const baseHeight = 0.4 + random8() * 0.8;
+        // Liegende Gebäude - kleiner
+        const baseWidth = 0.4 + random8() * 0.6;
+        const baseDepth = 0.4 + random8() * 0.6;
+        const baseHeight = 0.25 + random8() * 0.5;
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        // Prüfe explizit, dass es nicht zu nah an Gebäude 1 oder Logo ist
+        const tooCloseToBuilding1 = Math.sqrt((posX - 8.0) ** 2 + (posZ - 7) ** 2) < 2.5; // Größerer Abstand
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5; // Logo vermeiden
+        
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToBuilding1 && !tooCloseToLogo) {
           const numParts = random8() > 0.5 ? 2 : (random8() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -938,13 +1027,17 @@ function PlaceholderBuildings() {
       return seed9 / 233280;
     };
     
-    // Generiere Gebäude links von Gebäude 1 (x < 0, z um 8)
-    for (let z = 6; z <= 10; z += 0.8) {
-      for (let x = -6; x <= -1; x += 0.8) {
-        const offsetX = (random9() - 0.5) * 0.3;
-        const offsetZ = (random9() - 0.5) * 0.3;
+    // Generiere Gebäude links von Gebäude 1 (x < 0, z um 8) - reduzierte Dichte
+    for (let z = 6; z <= 10; z += 1.5) {
+      for (let x = -6; x <= -1; x += 1.5) {
+        const offsetX = (random9() - 0.5) * 0.1; // Reduzierter Offset
+        const offsetZ = (random9() - 0.5) * 0.1;
         const posX = x + offsetX;
         const posZ = z + offsetZ;
+        
+        // Logo und Gebäude-1 explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
+        const tooCloseToBuilding1 = Math.sqrt((posX - 8.0) ** 2 + (posZ - 7) ** 2) < 3.0; // Größerer Abstand
         
         // Liegende Gebäude
         const baseWidth = 0.7 + random9() * 1.0;
@@ -952,7 +1045,7 @@ function PlaceholderBuildings() {
         const baseHeight = 0.4 + random9() * 0.8;
         const radius = Math.max(baseWidth, baseDepth) / 2;
         
-        if (isPositionFree(posX, posZ, radius)) {
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo && !tooCloseToBuilding1) {
           const numParts = random9() > 0.5 ? 2 : (random9() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -1022,10 +1115,11 @@ function PlaceholderBuildings() {
                           Math.abs(posZ - waterArea.z) < waterArea.depth / 2;
         
         // Prüfe nur kritische Kollisionen (Logo und Gebäude 1)
-        const tooCloseToLogo = Math.sqrt((posX - 8.0) ** 2 + (posZ - 5.0) ** 2) < 3;
-        const tooCloseToBuilding1 = Math.sqrt((posX - 0) ** 2 + (posZ - 8) ** 2) < 3;
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
+        const tooCloseToBuilding1 = Math.sqrt((posX - 8.0) ** 2 + (posZ - 7) ** 2) < 3;
+        const tooCloseToDroneStart = Math.sqrt((posX - 0) ** 2 + (posZ - 7) ** 2) < 1.5; // Drohnen-Startposition vermeiden
         
-        if (!isOnWater && !tooCloseToLogo && !tooCloseToBuilding1) {
+        if (!isOnWater && !tooCloseToLogo && !tooCloseToBuilding1 && !tooCloseToDroneStart) {
           const numParts = random10() > 0.5 ? 2 : (random10() > 0.3 ? 3 : 1);
           const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
           
@@ -1046,6 +1140,144 @@ function PlaceholderBuildings() {
           }
           
           buildingsAtMarkerPosition.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Gebäude vor dem Logo (zwischen Logo z=6 und Drohnen-Start z=7)
+    const buildingsBeforeLogo: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed12 = 99999;
+    const random12 = () => {
+      seed12 = (seed12 * 9301 + 49297) % 233280;
+      return seed12 / 233280;
+    };
+    
+    // Generiere Gebäude vor dem Logo (z zwischen 6.3 und 6.9, weiter vom Logo entfernt)
+    for (let z = 6.3; z <= 6.9; z += 0.4) {
+      for (let x = -5; x <= 5; x += 0.8) {
+        const offsetX = (random12() - 0.5) * 0.1; // Reduzierter Offset für ordentlichere Anordnung
+        const offsetZ = (random12() - 0.5) * 0.1;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        const baseWidth = 0.5 + random12() * 0.9;
+        const baseDepth = 0.5 + random12() * 0.9;
+        const baseHeight = 0.3 + random12() * 0.6;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        // Logo und Drohnen-Start explizit vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5; // Logo vermeiden
+        const tooCloseToDroneStart = Math.sqrt((posX - 0) ** 2 + (posZ - 7) ** 2) < 1.5; // Drohnen-Start vermeiden
+        
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo && !tooCloseToDroneStart) {
+          const numParts = random12() > 0.5 ? 2 : (random12() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random12() * 0.6);
+            const partDepth = baseDepth * (0.7 + random12() * 0.6);
+            const partHeight = baseHeight * (0.8 + random12() * 0.4);
+            const partOffsetX = (random12() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random12() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsBeforeLogo.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude weiter vor dem Logo (z zwischen 7.2 und 8.5)
+    for (let z = 7.2; z <= 8.5; z += 0.5) {
+      for (let x = -5; x <= 5; x += 0.9) {
+        const offsetX = (random12() - 0.5) * 0.1;
+        const offsetZ = (random12() - 0.5) * 0.1;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        const baseWidth = 0.5 + random12() * 0.9;
+        const baseDepth = 0.5 + random12() * 0.9;
+        const baseHeight = 0.3 + random12() * 0.6;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        // Logo und Drohnen-Start vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
+        const tooCloseToDroneStart = Math.sqrt((posX - 0) ** 2 + (posZ - 7) ** 2) < 1.5;
+        
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo && !tooCloseToDroneStart) {
+          const numParts = random12() > 0.5 ? 2 : (random12() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random12() * 0.6);
+            const partDepth = baseDepth * (0.7 + random12() * 0.6);
+            const partHeight = baseHeight * (0.8 + random12() * 0.4);
+            const partOffsetX = (random12() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random12() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsBeforeLogo.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Gebäude hinter dem Logo (z zwischen 3.5 und 5.5)
+    for (let z = 3.5; z <= 5.5; z += 0.4) {
+      for (let x = -5; x <= 5; x += 0.8) {
+        const offsetX = (random12() - 0.5) * 0.1;
+        const offsetZ = (random12() - 0.5) * 0.1;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        const baseWidth = 0.5 + random12() * 0.9;
+        const baseDepth = 0.5 + random12() * 0.9;
+        const baseHeight = 0.3 + random12() * 0.6;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        // Logo vermeiden
+        const tooCloseToLogo = Math.sqrt((posX - 0) ** 2 + (posZ - 6) ** 2) < 2.5;
+        
+        if (isPositionFree(posX, posZ, radius) && !tooCloseToLogo) {
+          const numParts = random12() > 0.5 ? 2 : (random12() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random12() * 0.6);
+            const partDepth = baseDepth * (0.7 + random12() * 0.6);
+            const partHeight = baseHeight * (0.8 + random12() * 0.4);
+            const partOffsetX = (random12() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random12() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsBeforeLogo.push({ x: posX, z: posZ, parts });
         }
       }
     }
@@ -1077,10 +1309,11 @@ function PlaceholderBuildings() {
       const waterArea = { x: -8, z: 0, width: 8.4, depth: 24 };
       const isOnWater = Math.abs(pos.x - waterArea.x) < waterArea.width / 2 && 
                         Math.abs(pos.z - waterArea.z) < waterArea.depth / 2;
-      const tooCloseToLogo = Math.sqrt((pos.x - 8.0) ** 2 + (pos.z - 5.0) ** 2) < 3;
-      const tooCloseToBuilding1 = Math.sqrt((pos.x - 0) ** 2 + (pos.z - 8) ** 2) < 3;
+      const tooCloseToLogo = Math.sqrt((pos.x - 0) ** 2 + (pos.z - 6) ** 2) < 2.5;
+      const tooCloseToBuilding1 = Math.sqrt((pos.x - 8.0) ** 2 + (pos.z - 7) ** 2) < 3;
+      const tooCloseToDroneStart = Math.sqrt((pos.x - 0) ** 2 + (pos.z - 7) ** 2) < 1.5; // Drohnen-Startposition vermeiden
       
-      if (!isOnWater && !tooCloseToLogo && !tooCloseToBuilding1) {
+      if (!isOnWater && !tooCloseToLogo && !tooCloseToBuilding1 && !tooCloseToDroneStart) {
         const numParts = 2; // Komplexere kleine Gebäude mit 2 Teilen
         const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
         
@@ -1104,6 +1337,8 @@ function PlaceholderBuildings() {
       }
     });
     
+    // Füge Gebäude vor dem Logo hinzu
+    buildingList.push(...buildingsBeforeLogo);
     // Füge Gebäude vor Gebäude 1 hinzu
     buildingList.push(...buildingsBeforeBuilding1);
     // Füge Gebäude links von Gebäude 1 hinzu
@@ -1201,7 +1436,7 @@ function PathNetworkAnimated() {
   // Orangefarbene Linien, animiert als Lauflicht - gerade Linie von Gebäude 1 zu Gebäude 2
   const color = '#ffb344';
   const basePoints: THREE.Vector3[] = [
-    new THREE.Vector3(0, 0.03, 8),      // Gebäude 1
+    new THREE.Vector3(8.0, 0.03, 7),      // Gebäude 1
     new THREE.Vector3(9.39, 0.03, -9.2), // Gebäude 2
   ];
   const runway: THREE.Vector3[] = [
@@ -1423,7 +1658,7 @@ function BuildingModel() {
   }, [scene]);
 
   return (
-    <group position={[0, 0, 8]} rotation={[0, Math.PI * 0.5, 0]} scale={[2.5, 2.5, 2.5]}>
+    <group position={[8.0, 0, 7]} rotation={[0, Math.PI * 0.5, 0]} scale={[2.5, 2.5, 2.5]}>
       <primitive object={root} />
     </group>
   );
@@ -1646,7 +1881,7 @@ function BuildingPath() {
   const points: THREE.Vector3[] = [
     new THREE.Vector3(-2, 0.031, -1.4), // Container-Bereich
     new THREE.Vector3(0, 0.031, 3),      // Zwischen Container und Gebäude 1
-    new THREE.Vector3(0, 0.031, 8),       // Gebäude 1
+    new THREE.Vector3(8.0, 0.031, 7),       // Gebäude 1
     // Entfernt: Linie zu Gebäude 2 (wird von PathNetworkAnimated abgedeckt)
   ];
   const dash = useRef(0);
@@ -1672,8 +1907,8 @@ function PlazaArea() {
   // Dezente Plaza um das Hauptgebäude
   return (
     <group>
-      {/* Platzfläche - verschoben zu z = +8 und in die Mitte */}
-      <mesh position={[0, 0.015, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {/* Platzfläche - bei Gebäude 1 (z = 7) */}
+      <mesh position={[8.0, 0.015, 7]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[3.8, 48]} />
         <meshStandardMaterial 
           color="#000000" 
@@ -1684,8 +1919,8 @@ function PlazaArea() {
           envMapIntensity={0.5}
         />
       </mesh>
-      {/* Markierungsring - verschoben zu z = +8 und in die Mitte mit Orange-Glühen */}
-      <mesh position={[0, 0.017, 8]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Markierungsring - bei Gebäude 1 (z = 7) mit Orange-Glühen */}
+      <mesh position={[8.0, 0.017, 7]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.4, 3.6, 64]} />
         <meshStandardMaterial 
           color="#ffb344" 
@@ -1839,7 +2074,7 @@ export default function Home() {
           }
           // Setze initiale Kamera-Position: von oben beim Logo
           // Die Kamera wird dann von CameraAnimation gesteuert
-          const logoPos = new THREE.Vector3(8.0, 0.1, 5.0);
+          const logoPos = new THREE.Vector3(0, 0.1, 6); // Logo bei Gebäude-1-Position
           camera.position.set(logoPos.x, logoPos.y + 8, logoPos.z); // Von oben über dem Logo
           camera.lookAt(logoPos); // Schaut auf das Logo
         }}
@@ -1909,7 +2144,7 @@ export default function Home() {
         />
         {/* Orange Punktlicht über Logo */}
         <pointLight 
-          position={[8.0, 8, 5.0]} 
+          position={[0, 8, 6]} 
           intensity={2.5} 
           color="#ffb344"
           distance={15}
