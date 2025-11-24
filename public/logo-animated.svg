@@ -1,0 +1,41 @@
+<!-- Modern per-letter animation for STATIKBÜRO24 -->
+<!-- Each letter draws itself with a clean outline stroke, then fills in. -->
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="260" viewBox="0 0 1400 260">
+  <defs>
+    <style><![CDATA[
+      .letter {
+        font-family: 'Montserrat','Helvetica Neue',Arial,sans-serif;
+        font-weight: 800;
+        font-size: 150px;
+        fill: none;
+        stroke: #FFBC3D;
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+        animation: draw 3.0s ease forwards;
+      }
+      @keyframes draw {
+        to { stroke-dashoffset: 0; }
+      }
+    ]]></style>
+  </defs>
+
+  <g transform="translate(40,180)">
+    <!-- Each letter isolated so each draws itself cleanly -->
+    <text x="0"    y="0" class="letter">S</text>
+    <text x="110"  y="0" class="letter">T</text>
+    <text x="210"  y="0" class="letter">A</text>
+    <text x="320"  y="0" class="letter">T</text>
+    <text x="420"  y="0" class="letter">I</text>
+    <text x="480"  y="0" class="letter">K</text>
+    <text x="600"  y="0" class="letter">B</text>
+    <text x="720"  y="0" class="letter">Ü</text>
+    <text x="840"  y="0" class="letter">R</text>
+    <text x="955"  y="0" class="letter">O</text>
+    <text x="1085" y="0" class="letter">2</text>
+    <text x="1180" y="0" class="letter">4</text>
+  </g>
+</svg>

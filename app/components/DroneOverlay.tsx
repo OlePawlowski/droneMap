@@ -337,8 +337,8 @@ export default function DroneOverlay({ dronePosition, droneRotation, targetDirec
         position: 'absolute',
         left: '50%',
         top: '70%', // Etwas höher positioniert
-        width: isMobile ? '180px' : '240px', // Auf mobil kleiner
-        height: isMobile ? '180px' : '240px', // Auf mobil kleiner
+        width: isMobile ? '140px' : '240px', // Auf mobil kleiner
+        height: isMobile ? '140px' : '240px', // Auf mobil kleiner
         pointerEvents: 'none',
         zIndex: 1000,
         ...getRotationStyle(),

@@ -9,6 +9,26 @@ import IntroAnimation from '../components/IntroAnimation';
 import CameraAnimation from '../components/CameraAnimation';
 import BuildingInfo from '../components/BuildingInfo';
 
+function IntroDroneModel({ 
+  onPositionUpdate 
+}: { 
+  onPositionUpdate: (pos: THREE.Vector3) => void;
+}) {
+  const droneRef = useRef<THREE.Group>(null);
+  const endPos = useRef(new THREE.Vector3(0, 0.6, 7)); // Endposition - Drohne ist bereits hier (niedriger für Flug durch die Welt)
+
+  useEffect(() => {
+    if (droneRef.current) {
+      // Setze Drohne direkt an ihre Startposition - sie ist bereits da
+      droneRef.current.position.copy(endPos.current);
+      // Update Position für Overlay
+      onPositionUpdate(endPos.current.clone());
+    }
+  }, [onPositionUpdate]);
+
+  return <DroneModel droneRef={droneRef} initialPosition={endPos.current} />;
+}
+
 function DroneModel({ droneRef, initialPosition }: { droneRef: React.RefObject<THREE.Group | null>; initialPosition: THREE.Vector3 }) {
   // Setze initiale Position der Drohne nur EINMAL beim Mount
   const hasSetPosition = useRef(false);
@@ -229,8 +249,8 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
     }
 
 
-    // Nur fliegen wenn Maustaste gedrückt ist
-    if (isFlying && smoothedTargetDir.current) {
+    // Nur fliegen wenn Maustaste gedrückt ist UND nicht während Intro
+    if (isFlying && smoothedTargetDir.current && !disableCameraFollow) {
       // Direkt zur geglätteten Zielrichtung fliegen (reduziert Zittern)
       const moveDirection = smoothedTargetDir.current.clone();
       moveDirection.y = 0; // Nur horizontale Bewegung
@@ -244,8 +264,8 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
 
     // Kamera-Follow nur wenn nicht während Intro
     if (!disableCameraFollow) {
-      const camDistance = 12;
-      const camHeight = 7;
+      const camDistance = 8; // Näher an der Drohne
+      const camHeight = 3; // Niedriger für Flug durch die Welt statt darüber
       
       const dronePos = droneRef.current.position.clone();
       const camOffset = new THREE.Vector3(0, camHeight, camDistance);
@@ -253,12 +273,12 @@ function DroneControls({ onPositionUpdate, onDirectionUpdate, disableCameraFollo
       
       // Smooth Follow immer
       camera.position.lerp(targetCamPos, 0.05);
-      const lookAtPos = dronePos.clone().add(new THREE.Vector3(0, 1, 0));
+      const lookAtPos = dronePos.clone().add(new THREE.Vector3(0, 0.5, 0)); // Niedrigerer LookAt für Flug durch die Welt
       camera.lookAt(lookAtPos);
     }
   });
 
-  return <DroneModel droneRef={droneRef} initialPosition={new THREE.Vector3(0, 2, 7)} />;
+  return <DroneModel droneRef={droneRef} initialPosition={new THREE.Vector3(0, 0.6, 7)} />;
 }
 
 function Terrain() {
@@ -266,27 +286,860 @@ function Terrain() {
     <mesh position={[0, -0.1, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
       <planeGeometry args={[200, 200, 1, 1]} />
       <meshStandardMaterial 
-        color="#2a2a2a"
-        roughness={0.9}
-        metalness={0.0}
+        color="#000000"
+        roughness={0.2}
+        metalness={0.7}
+        emissive="#000000"
+        emissiveIntensity={0}
+        envMapIntensity={0.5}
       />
     </mesh>
   );
 }
 
 function ModernCity() {
-  // Statikbüro-Logo angepasst - rechts, hinten und größer
+  // 3D-Logo laden
+  const { scene } = useGLTF('/logo.glb');
+  const logoRef = useRef<THREE.Group>(null);
+  const logoMaterialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
+  
+  const logoRefMemo = useMemo(() => {
+    const cloned = scene.clone();
+    
+    // Logo noch kleiner machen
+    cloned.scale.setScalar(0.35);
+    
+    // Logo auf Boden positionieren (etwas nach links und ganz bisschen nach vorne)
+    cloned.position.set(8.0, 0, 5.0);
+    
+    // Logo horizontal ausrichten
+    cloned.rotation.x = -Math.PI / 2;
+    
+    // Logo um Y-Achse neigen (über Z-Achse), damit linke Seite angehoben wird
+    cloned.rotation.y = -(5.5 * Math.PI / 180); // 5.5 Grad neigen (linke Seite höher)
+    
+    // Materialien wie die Gebäude einfärben (Gold/Orange) und für Animation speichern
+    logoMaterialsRef.current = [];
+    cloned.traverse((child: any) => {
+      if (child.isMesh && child.material) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat: any) => {
+            if (mat instanceof THREE.MeshStandardMaterial) {
+              mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange wie die Gebäude
+              mat.metalness = 0.5;
+              mat.roughness = 0.3;
+              mat.emissive = new THREE.Color(0x1a1a0a);
+              mat.emissiveIntensity = 0.05;
+              mat.envMapIntensity = 1.0;
+              mat.needsUpdate = true;
+              logoMaterialsRef.current.push(mat);
+            }
+          });
+        } else {
+          const mat = child.material;
+          if (mat instanceof THREE.MeshStandardMaterial) {
+            mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange wie die Gebäude
+            mat.metalness = 0.5;
+            mat.roughness = 0.3;
+            mat.emissive = new THREE.Color(0x1a1a0a);
+            mat.emissiveIntensity = 0.05;
+            mat.envMapIntensity = 1.0;
+            mat.needsUpdate = true;
+            logoMaterialsRef.current.push(mat);
+          }
+        }
+      }
+    });
+    
+    return cloned;
+  }, [scene]);
+  
+  // Logo-Effekt: Sanftes Pulsieren und Leuchten
+  useFrame(() => {
+    const time = Date.now() * 0.001;
+    const pulse = 0.1 + Math.sin(time * 1.5) * 0.05; // Sanftes Pulsieren
+    
+    logoMaterialsRef.current.forEach((mat) => {
+      mat.emissiveIntensity = pulse;
+    });
+    
+    // Leichtes Schwebeeffekt
+    if (logoRef.current) {
+      logoRef.current.position.y = 0 + Math.sin(time * 0.8) * 0.02;
+    }
+  });
+  
   return (
     <group>
-      {/* Logo rechts, hinten und größer - um -90 Grad gedreht */}
-      <mesh position={[9, 0.1, 6]} rotation={[-Math.PI / 2, 0, -Math.PI / 2]}>
-        <planeGeometry args={[7, 5]} />
-        <meshBasicMaterial 
-          map={useTexture('/statikbüro-logo.png')}
-          transparent
-          opacity={0.9}
+      {/* 3D-Logo mit Ref für Animation */}
+      <primitive ref={logoRef} object={logoRefMemo} />
+      
+      {/* Ladebalken unter dem Logo */}
+      <LoadingBar position={[8.0, -0.12, 5.0]} />
+      
+      {/* Sanftes Punktlicht über dem Logo */}
+      <pointLight
+        position={[8.0, 4, 5.0]}
+        color="#ffb344"
+        intensity={2.5}
+        distance={12}
+        decay={2}
+      />
+    </group>
+  );
+}
+
+function LoadingBar({ position }: { position: [number, number, number] }) {
+  const progressRef = useRef(0);
+  const barRef = useRef<THREE.Mesh>(null);
+  const startTime = useRef(Date.now());
+  
+  useFrame(() => {
+    // Lade-Progress basierend auf verstrichener Zeit
+    const elapsed = Date.now() - startTime.current;
+    const totalDuration = 4000; // 4 Sekunden für vollständiges Laden
+    progressRef.current = Math.min(elapsed / totalDuration, 1);
+    
+    if (barRef.current) {
+      const material = barRef.current.material as THREE.MeshStandardMaterial;
+      // Pulsierendes Leuchten während des Ladens
+      const pulse = 0.4 + Math.sin(Date.now() * 0.008) * 0.15;
+      material.emissiveIntensity = pulse;
+    }
+  });
+  
+  const barWidth = 3.5; // Etwas schmaler, passend zum Logo
+  const barHeight = 0.08;
+  
+  return (
+    <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Hintergrund des Ladebalkens */}
+      <mesh position={[0, 0.01, 0]}>
+        <planeGeometry args={[barWidth, barHeight]} />
+        <meshStandardMaterial 
+          color="#0a0a0a"
+          roughness={0.9}
+          metalness={0.1}
         />
       </mesh>
+      
+      {/* Ladebalken selbst */}
+      <mesh ref={barRef} position={[-barWidth / 2 + (barWidth * progressRef.current) / 2, 0.015, 0]}>
+        <planeGeometry args={[barWidth * progressRef.current, barHeight * 0.9]} />
+        <meshStandardMaterial 
+          color="#ffb344"
+          emissive="#ffb344"
+          emissiveIntensity={0.4}
+          roughness={0.1}
+          metalness={0.9}
+        />
+      </mesh>
+      
+    </group>
+  );
+}
+
+function MarkerTower() {
+  // Großer Tower als Marker zum Finden der richtigen Stelle
+  return (
+    <group position={[-2.5, 0, 2]}>
+      <mesh position={[0, 5, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2, 10, 2]} />
+        <meshStandardMaterial 
+          color="#ff0000"
+          emissive="#ff0000"
+          emissiveIntensity={0.5}
+          roughness={0.1}
+          metalness={0.9}
+        />
+      </mesh>
+      {/* Leuchtende Spitze */}
+      <mesh position={[0, 10.5, 0]}>
+        <coneGeometry args={[1, 2, 8]} />
+        <meshStandardMaterial 
+          color="#ffff00"
+          emissive="#ffff00"
+          emissiveIntensity={1.0}
+          roughness={0.1}
+          metalness={0.9}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function PlaceholderBuildings() {
+  // Platzhaltergebäude für leere Bereiche - komplexeres Design, kleiner, weniger orange
+  const buildings = useMemo(() => {
+    const buildingList: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    // Bereiche, die bereits belegt sind (mit größerem Puffer)
+    const occupiedAreas: Array<{ x: number; z: number; radius: number }> = [
+      { x: 0, z: 8, radius: 4 },        // Gebäude 1 (mit Puffer)
+      { x: 9.39, z: -9.2, radius: 4 },  // Gebäude 2 (mit Puffer)
+      { x: 8.0, z: 5.0, radius: 3 },    // Logo (mit Puffer)
+      { x: -8, z: 0, radius: 6 },       // Hafen/Brücke (mit Puffer)
+      { x: -8, z: 6, radius: 3 },       // Boot (mit Puffer)
+      { x: 0, z: 8, radius: 3 },        // Plaza (mit Puffer)
+    ];
+    
+    // Container-Bereiche
+    for (let x = -2; x <= 2; x += 2) {
+      for (let z = -2; z <= -0.8; z += 1.2) {
+        occupiedAreas.push({ x, z, radius: 1.5 });
+      }
+    }
+    
+    // Prüfe ob Position frei ist
+    const isPositionFree = (x: number, z: number, radius: number) => {
+      // Keine Gebäude auf dem Wasser (Hafen-Bereich)
+      const waterArea = { x: -8, z: 0, width: 8.4, depth: 24 };
+      const isOnWater = Math.abs(x - waterArea.x) < waterArea.width / 2 && 
+                        Math.abs(z - waterArea.z) < waterArea.depth / 2;
+      if (isOnWater) return false;
+      
+      return !occupiedAreas.some(area => {
+        const dist = Math.sqrt((x - area.x) ** 2 + (z - area.z) ** 2);
+        return dist < (area.radius + radius + 1); // Extra Puffer
+      });
+    };
+    
+    // Zusätzliche Gebäude hinter Gebäude 1 (bei z < 8, also hinter dem Gebäude)
+    const buildingsBehindBuilding1: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed2 = 54321; // Anderer Seed für hinter-Gebäude-1
+    const random2 = () => {
+      seed2 = (seed2 * 9301 + 49297) % 233280;
+      return seed2 / 233280;
+    };
+    
+    // Generiere Gebäude hinter Gebäude 1 (z < 8, x zwischen -4 und 4)
+    for (let z = 2; z <= 6; z += 1.2) {
+      for (let x = -3; x <= 3; x += 1.2) {
+        const offsetX = (random2() - 0.5) * 0.3;
+        const offsetZ = (random2() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude: breiter/flacher statt hoch
+        const baseWidth = 0.8 + random2() * 1.2;
+        const baseDepth = 0.8 + random2() * 1.2;
+        const baseHeight = 0.4 + random2() * 0.8; // Viel niedriger
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random2() > 0.5 ? 2 : (random2() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random2() * 0.6);
+            const partDepth = baseDepth * (0.7 + random2() * 0.6);
+            const partHeight = baseHeight * (0.8 + random2() * 0.4);
+            const partOffsetX = (random2() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random2() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsBehindBuilding1.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Generiere Gebäude in einem Grid
+    const gridSize = 2.5; // Kleinerer Abstand
+    const mapSize = 12; // Größe der Karte
+    
+    // Seed-basierter Zufallsgenerator für konsistente Werte
+    let seed = 12345;
+    const random = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+    
+    for (let x = -mapSize; x <= mapSize; x += gridSize) {
+      for (let z = -mapSize; z <= mapSize; z += gridSize) {
+        const offsetX = (random() - 0.5) * 0.6;
+        const offsetZ = (random() - 0.5) * 0.6;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude: breiter/flacher statt hoch
+        const baseWidth = 0.7 + random() * 1.0;
+        const baseDepth = 0.7 + random() * 1.0;
+        const baseHeight = 0.4 + random() * 0.9; // Viel niedriger
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          // Komplexeres Design: mehrere Teile pro Gebäude
+          const numParts = random() > 0.5 ? 2 : (random() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random() * 0.6);
+            const partDepth = baseDepth * (0.7 + random() * 0.6);
+            const partHeight = baseHeight * (0.8 + random() * 0.4);
+            const partOffsetX = (random() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingList.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude in der Mitte hinten (mehr Dichte)
+    const buildingsCenterBack: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed3 = 98765; // Anderer Seed für Mitte hinten
+    const random3 = () => {
+      seed3 = (seed3 * 9301 + 49297) % 233280;
+      return seed3 / 233280;
+    };
+    
+    // Generiere mehr Gebäude in der Mitte hinten (z zwischen 0 und 6, x zwischen -2 und 2)
+    for (let z = 0; z <= 6; z += 1.0) {
+      for (let x = -2; x <= 2; x += 1.0) {
+        const offsetX = (random3() - 0.5) * 0.3;
+        const offsetZ = (random3() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude
+        const baseWidth = 0.7 + random3() * 1.0;
+        const baseDepth = 0.7 + random3() * 1.0;
+        const baseHeight = 0.4 + random3() * 0.8;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random3() > 0.5 ? 2 : (random3() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random3() * 0.6);
+            const partDepth = baseDepth * (0.7 + random3() * 0.6);
+            const partHeight = baseHeight * (0.8 + random3() * 0.4);
+            const partOffsetX = (random3() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random3() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsCenterBack.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude zwischen Gebäude 1 (z=8) und Mitte (z=0)
+    const buildingsBetweenBuilding1AndCenter: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed4 = 11111; // Anderer Seed für zwischen Gebäude 1 und Mitte
+    const random4 = () => {
+      seed4 = (seed4 * 9301 + 49297) % 233280;
+      return seed4 / 233280;
+    };
+    
+    // Generiere Gebäude zwischen Gebäude 1 (z=8) und Mitte (z=0) - größerer Bereich nach links
+    for (let z = 0.5; z <= 7.5; z += 0.7) {
+      for (let x = -7; x <= 4; x += 0.7) {
+        const offsetX = (random4() - 0.5) * 0.3;
+        const offsetZ = (random4() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude
+        const baseWidth = 0.7 + random4() * 1.0;
+        const baseDepth = 0.7 + random4() * 1.0;
+        const baseHeight = 0.4 + random4() * 0.8;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random4() > 0.5 ? 2 : (random4() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random4() * 0.6);
+            const partDepth = baseDepth * (0.7 + random4() * 0.6);
+            const partHeight = baseHeight * (0.8 + random4() * 0.4);
+            const partOffsetX = (random4() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random4() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsBetweenBuilding1AndCenter.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude links von der Mitte
+    const buildingsLeftOfCenter: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed5 = 22222; // Anderer Seed für links von Mitte
+    const random5 = () => {
+      seed5 = (seed5 * 9301 + 49297) % 233280;
+      return seed5 / 233280;
+    };
+    
+    // Generiere Gebäude links von der Mitte (x < 0, z um 0)
+    for (let z = -2; z <= 2; z += 0.8) {
+      for (let x = -6; x <= -1; x += 0.8) {
+        const offsetX = (random5() - 0.5) * 0.3;
+        const offsetZ = (random5() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude
+        const baseWidth = 0.7 + random5() * 1.0;
+        const baseDepth = 0.7 + random5() * 1.0;
+        const baseHeight = 0.4 + random5() * 0.8;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random5() > 0.5 ? 2 : (random5() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random5() * 0.6);
+            const partDepth = baseDepth * (0.7 + random5() * 0.6);
+            const partHeight = baseHeight * (0.8 + random5() * 0.4);
+            const partOffsetX = (random5() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random5() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsLeftOfCenter.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude zwischen Gebäude 1 und Hälfte auf der linken Seite
+    const buildingsLeftBetweenBuilding1AndHalf: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed6 = 33333; // Anderer Seed für links zwischen Gebäude 1 und Hälfte
+    const random6 = () => {
+      seed6 = (seed6 * 9301 + 49297) % 233280;
+      return seed6 / 233280;
+    };
+    
+    // Generiere Gebäude zwischen Gebäude 1 (z=8) und Hälfte (z=4) auf der linken Seite (x < 0)
+    for (let z = 4; z <= 7; z += 0.8) {
+      for (let x = -6; x <= -1; x += 0.8) {
+        const offsetX = (random6() - 0.5) * 0.3;
+        const offsetZ = (random6() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude
+        const baseWidth = 0.7 + random6() * 1.0;
+        const baseDepth = 0.7 + random6() * 1.0;
+        const baseHeight = 0.4 + random6() * 0.8;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random6() > 0.5 ? 2 : (random6() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random6() * 0.6);
+            const partDepth = baseDepth * (0.7 + random6() * 0.6);
+            const partHeight = baseHeight * (0.8 + random6() * 0.4);
+            const partOffsetX = (random6() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random6() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsLeftBetweenBuilding1AndHalf.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude zwischen Wasser und horizontaler Mitte
+    const buildingsBetweenWaterAndCenter: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed7 = 44444; // Anderer Seed für zwischen Wasser und Mitte
+    const random7 = () => {
+      seed7 = (seed7 * 9301 + 49297) % 233280;
+      return seed7 / 233280;
+    };
+    
+    // Generiere Gebäude zwischen Wasser (x=-8) und horizontaler Mitte (x=0)
+    for (let x = -7; x <= -1; x += 0.8) {
+      for (let z = -3; z <= 3; z += 0.8) {
+        const offsetX = (random7() - 0.5) * 0.3;
+        const offsetZ = (random7() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude
+        const baseWidth = 0.7 + random7() * 1.0;
+        const baseDepth = 0.7 + random7() * 1.0;
+        const baseHeight = 0.4 + random7() * 0.8;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random7() > 0.5 ? 2 : (random7() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random7() * 0.6);
+            const partDepth = baseDepth * (0.7 + random7() * 0.6);
+            const partHeight = baseHeight * (0.8 + random7() * 0.4);
+            const partOffsetX = (random7() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random7() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsBetweenWaterAndCenter.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude vor Gebäude 1 (z > 8)
+    const buildingsBeforeBuilding1: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed8 = 55555; // Anderer Seed für vor Gebäude 1
+    const random8 = () => {
+      seed8 = (seed8 * 9301 + 49297) % 233280;
+      return seed8 / 233280;
+    };
+    
+    // Generiere Gebäude vor Gebäude 1 (z > 8, also vor dem Gebäude)
+    for (let z = 9; z <= 12; z += 0.8) {
+      for (let x = -3; x <= 3; x += 0.8) {
+        const offsetX = (random8() - 0.5) * 0.3;
+        const offsetZ = (random8() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude
+        const baseWidth = 0.7 + random8() * 1.0;
+        const baseDepth = 0.7 + random8() * 1.0;
+        const baseHeight = 0.4 + random8() * 0.8;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random8() > 0.5 ? 2 : (random8() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random8() * 0.6);
+            const partDepth = baseDepth * (0.7 + random8() * 0.6);
+            const partHeight = baseHeight * (0.8 + random8() * 0.4);
+            const partOffsetX = (random8() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random8() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsBeforeBuilding1.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zusätzliche Gebäude links von Gebäude 1
+    const buildingsLeftOfBuilding1: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed9 = 66666; // Anderer Seed für links von Gebäude 1
+    const random9 = () => {
+      seed9 = (seed9 * 9301 + 49297) % 233280;
+      return seed9 / 233280;
+    };
+    
+    // Generiere Gebäude links von Gebäude 1 (x < 0, z um 8)
+    for (let z = 6; z <= 10; z += 0.8) {
+      for (let x = -6; x <= -1; x += 0.8) {
+        const offsetX = (random9() - 0.5) * 0.3;
+        const offsetZ = (random9() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Liegende Gebäude
+        const baseWidth = 0.7 + random9() * 1.0;
+        const baseDepth = 0.7 + random9() * 1.0;
+        const baseHeight = 0.4 + random9() * 0.8;
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        if (isPositionFree(posX, posZ, radius)) {
+          const numParts = random9() > 0.5 ? 2 : (random9() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random9() * 0.6);
+            const partDepth = baseDepth * (0.7 + random9() * 0.6);
+            const partHeight = baseHeight * (0.8 + random9() * 0.4);
+            const partOffsetX = (random9() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random9() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsLeftOfBuilding1.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Füge Gebäude hinter Gebäude 1 hinzu
+    buildingList.push(...buildingsBehindBuilding1);
+    // Füge Gebäude in der Mitte hinten hinzu
+    buildingList.push(...buildingsCenterBack);
+    // Füge Gebäude zwischen Gebäude 1 und Mitte hinzu
+    buildingList.push(...buildingsBetweenBuilding1AndCenter);
+    // Füge Gebäude links von der Mitte hinzu
+    buildingList.push(...buildingsLeftOfCenter);
+    // Füge Gebäude zwischen Gebäude 1 und Hälfte auf der linken Seite hinzu
+    buildingList.push(...buildingsLeftBetweenBuilding1AndHalf);
+    // Füge Gebäude zwischen Wasser und horizontaler Mitte hinzu
+    buildingList.push(...buildingsBetweenWaterAndCenter);
+    // Zusätzliche Gebäude bei [-2.5, 0, 2] (Marker-Position)
+    const buildingsAtMarkerPosition: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed10 = 77777; // Anderer Seed für Marker-Position
+    const random10 = () => {
+      seed10 = (seed10 * 9301 + 49297) % 233280;
+      return seed10 / 233280;
+    };
+    
+    // Generiere Gebäude um die Marker-Position [-2.5, 0, 2] - weniger Gebäude
+    for (let z = 0; z <= 4; z += 2.5) {
+      for (let x = -3.5; x <= -1.5; x += 2.5) {
+        const offsetX = (random10() - 0.5) * 0.3;
+        const offsetZ = (random10() - 0.5) * 0.3;
+        const posX = x + offsetX;
+        const posZ = z + offsetZ;
+        
+        // Sehr flache, liegende Gebäude
+        const baseWidth = 0.7 + random10() * 1.0;
+        const baseDepth = 0.7 + random10() * 1.0;
+        const baseHeight = 0.2 + random10() * 0.4; // Viel niedriger
+        const radius = Math.max(baseWidth, baseDepth) / 2;
+        
+        // Prüfe nur Wasser, nicht andere Objekte (kleinerer Puffer für diesen Bereich)
+        const waterArea = { x: -8, z: 0, width: 8.4, depth: 24 };
+        const isOnWater = Math.abs(posX - waterArea.x) < waterArea.width / 2 && 
+                          Math.abs(posZ - waterArea.z) < waterArea.depth / 2;
+        
+        // Prüfe nur kritische Kollisionen (Logo und Gebäude 1)
+        const tooCloseToLogo = Math.sqrt((posX - 8.0) ** 2 + (posZ - 5.0) ** 2) < 3;
+        const tooCloseToBuilding1 = Math.sqrt((posX - 0) ** 2 + (posZ - 8) ** 2) < 3;
+        
+        if (!isOnWater && !tooCloseToLogo && !tooCloseToBuilding1) {
+          const numParts = random10() > 0.5 ? 2 : (random10() > 0.3 ? 3 : 1);
+          const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+          
+          for (let p = 0; p < numParts; p++) {
+            const partWidth = baseWidth * (0.7 + random10() * 0.6);
+            const partDepth = baseDepth * (0.7 + random10() * 0.6);
+            const partHeight = baseHeight * (0.8 + random10() * 0.4);
+            const partOffsetX = (random10() - 0.5) * baseWidth * 0.5;
+            const partOffsetZ = (random10() - 0.5) * baseDepth * 0.5;
+            
+            parts.push({
+              width: partWidth,
+              depth: partDepth,
+              height: partHeight,
+              offsetX: partOffsetX,
+              offsetZ: partOffsetZ
+            });
+          }
+          
+          buildingsAtMarkerPosition.push({ x: posX, z: posZ, parts });
+        }
+      }
+    }
+    
+    // Zwei kleine Gebäude weiter rechts (zur Mitte)
+    const smallBuildingsRight: Array<{ 
+      x: number; 
+      z: number; 
+      parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }>;
+    }> = [];
+    
+    let seed11 = 88888;
+    const random11 = () => {
+      seed11 = (seed11 * 9301 + 49297) % 233280;
+      return seed11 / 233280;
+    };
+    
+    // Zwei kleine Gebäude bei x=0 bis 1, z=1 bis 3
+    const positions = [
+      { x: 0.5, z: 1.5 },
+      { x: 0, z: 2.5 }
+    ];
+    
+    positions.forEach((pos) => {
+      const baseWidth = 0.7 + random11() * 0.8;
+      const baseDepth = 0.7 + random11() * 0.8;
+      const baseHeight = 0.3 + random11() * 0.5;
+      
+      const waterArea = { x: -8, z: 0, width: 8.4, depth: 24 };
+      const isOnWater = Math.abs(pos.x - waterArea.x) < waterArea.width / 2 && 
+                        Math.abs(pos.z - waterArea.z) < waterArea.depth / 2;
+      const tooCloseToLogo = Math.sqrt((pos.x - 8.0) ** 2 + (pos.z - 5.0) ** 2) < 3;
+      const tooCloseToBuilding1 = Math.sqrt((pos.x - 0) ** 2 + (pos.z - 8) ** 2) < 3;
+      
+      if (!isOnWater && !tooCloseToLogo && !tooCloseToBuilding1) {
+        const numParts = 2; // Komplexere kleine Gebäude mit 2 Teilen
+        const parts: Array<{ width: number; depth: number; height: number; offsetX: number; offsetZ: number }> = [];
+        
+        for (let p = 0; p < numParts; p++) {
+          const partWidth = baseWidth * (0.7 + random11() * 0.6);
+          const partDepth = baseDepth * (0.7 + random11() * 0.6);
+          const partHeight = baseHeight * (0.8 + random11() * 0.4);
+          const partOffsetX = (random11() - 0.5) * baseWidth * 0.5;
+          const partOffsetZ = (random11() - 0.5) * baseDepth * 0.5;
+          
+          parts.push({
+            width: partWidth,
+            depth: partDepth,
+            height: partHeight,
+            offsetX: partOffsetX,
+            offsetZ: partOffsetZ
+          });
+        }
+        
+        smallBuildingsRight.push({ x: pos.x, z: pos.z, parts });
+      }
+    });
+    
+    // Füge Gebäude vor Gebäude 1 hinzu
+    buildingList.push(...buildingsBeforeBuilding1);
+    // Füge Gebäude links von Gebäude 1 hinzu
+    buildingList.push(...buildingsLeftOfBuilding1);
+    // Füge Gebäude bei Marker-Position hinzu
+    buildingList.push(...buildingsAtMarkerPosition);
+    // Füge zwei kleine Gebäude weiter rechts hinzu
+    buildingList.push(...smallBuildingsRight);
+    
+    return buildingList;
+  }, []);
+  
+  return (
+    <group>
+      {buildings.map((building, i) => (
+        <group key={i} position={[building.x, 0, building.z]}>
+          {building.parts.map((part, pIdx) => (
+            <mesh 
+              key={pIdx}
+              position={[part.offsetX, part.height / 2, part.offsetZ]}
+              castShadow 
+              receiveShadow
+            >
+              <boxGeometry args={[part.width, part.height, part.depth]} />
+              <meshStandardMaterial 
+                color="#000000"
+                roughness={0.6}
+                metalness={0.3}
+                emissive="#000000"
+                emissiveIntensity={0}
+                envMapIntensity={0.5}
+              />
+            </mesh>
+          ))}
+        </group>
+      ))}
     </group>
   );
 }
@@ -294,25 +1147,38 @@ function ModernCity() {
 function ContainersArea() {
   // Container-Kästen wiederhergestellt, aber weiter nach hinten verschoben
   // Container-Kästen mit ursprünglicher Größe, aber mehr Blöcke
-  const container = (x: number, z: number, w = 1.6, h = 0.6, d = 0.8, c = "#2f3638") => (
+  const container = (x: number, z: number, w = 1.6, h = 0.6, d = 0.8, c = "#000000") => (
     <group position={[x, h / 2, z]}> 
       <mesh>
         <boxGeometry args={[w, h, d]} />
         <meshStandardMaterial color={c} roughness={0.8} metalness={0.1} />
       </mesh>
-      <mesh position={[0, h * 0.51, 0]}> {/* Deckleisten */}
+      <mesh position={[0, h * 0.51, 0]}> {/* Deckleisten - orange wie Hauptgebäude */}
         <boxGeometry args={[w * 0.98, 0.04, d * 0.98]} />
-        <meshStandardMaterial color="#384044" roughness={0.75} metalness={0.1} />
+        <meshStandardMaterial 
+          color="#cc8a2a" 
+          roughness={0.3}
+          metalness={0.5}
+          emissive="#1a1a0a"
+          emissiveIntensity={0.05}
+          envMapIntensity={1.0}
+        />
       </mesh>
       <mesh position={[0, -h * 0.51, 0]}> {/* Bodenleisten */}
         <boxGeometry args={[w * 0.98, 0.04, d * 0.98]} />
-        <meshStandardMaterial color="#384044" roughness={0.75} metalness={0.1} />
+        <meshStandardMaterial color="#2a4a4a" roughness={0.6} metalness={0.3} />
       </mesh>
-      {/* Vertikale Rillen */}
+      {/* Vertikale Rillen mit Orange-Akzenten */}
       {Array.from({ length: 6 }).map((_, i) => (
         <mesh key={i} position={[w * (-0.5 + (i + 1) / 7), 0, 0]}> 
           <boxGeometry args={[0.02, h * 0.9, d * 1.02]} />
-          <meshStandardMaterial color="#31383b" roughness={0.8} metalness={0.1} />
+          <meshStandardMaterial 
+            color="#000000" 
+            emissive="#ffb344"
+            emissiveIntensity={i % 2 === 0 ? 0.15 : 0}
+            roughness={0.7} 
+            metalness={0.3} 
+          />
         </mesh>
       ))}
     </group>
@@ -370,7 +1236,8 @@ function PathNetworkAnimated() {
 function SceneFog() {
   const { scene } = useThree();
   useEffect(() => {
-    scene.fog = new THREE.FogExp2('#0b1414', 0.035);
+    // Elegantes schwarzes Fog
+    scene.fog = new THREE.FogExp2('#000000', 0.04); // Elegantes schwarzes Fog
     return () => { scene.fog = null as any; };
   }, [scene]);
   return null;
@@ -422,8 +1289,8 @@ function BoatModel() {
 }
 
 function RoadSystem() {
-  const roadMaterial = { color: "#4a4a4a", metalness: 0.8, roughness: 0.2 };
-  const glowRoadMaterial = { color: "#ffb344", metalness: 0.1, roughness: 0.0, emissive: "#ffb344", emissiveIntensity: 0.4 };
+  const roadMaterial = { color: "#000000", metalness: 0.2, roughness: 0.8 };
+  const glowRoadMaterial = { color: "#ffb344", metalness: 0.1, roughness: 0.0, emissive: "#ffb344", emissiveIntensity: 0.7 };
   
   return (
     <group>
@@ -536,7 +1403,7 @@ function BuildingModel() {
               }
             });
           } else {
-            const mat = mesh.material;
+            const mat = mesh.material as THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
             if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) {
               mat.color.setHex(0xcc8a2a); // Gedämpftes Gold/Orange
               if (mat instanceof THREE.MeshStandardMaterial) {
@@ -556,7 +1423,7 @@ function BuildingModel() {
   }, [scene]);
 
   return (
-    <group position={[0, 0, 8]} rotation={[0, -Math.PI * 0.5, 0]} scale={[2.5, 2.5, 2.5]}>
+    <group position={[0, 0, 8]} rotation={[0, Math.PI * 0.5, 0]} scale={[2.5, 2.5, 2.5]}>
       <primitive object={root} />
     </group>
   );
@@ -564,14 +1431,13 @@ function BuildingModel() {
 
 function OptionalBuilding2() {
   // Versuche '/gebäude-2.glb' zu laden, wenn vorhanden
-  let gltf: ReturnType<typeof useGLTF> | null = null;
-  try {
-    gltf = useGLTF('/gebäude-2-neu.glb') as any;
-  } catch (e) {
-    return null;
-  }
-  const { scene } = gltf as any;
+  // Hooks müssen immer aufgerufen werden
+  const gltf = useGLTF('/gebäude-2-neu.glb');
+  const { scene } = gltf;
+  
+  // Verwende useMemo immer
   const root = useMemo(() => {
+    if (!scene) return null;
     const cloned = scene.clone();
     const bbox = new THREE.Box3().setFromObject(cloned);
     if (isFinite(bbox.min.y)) {
@@ -579,7 +1445,7 @@ function OptionalBuilding2() {
       cloned.position.y += liftY;
     }
     // Gold/Orange-Materialien für Gebäude 2
-    cloned.traverse((child: any) => {
+    cloned.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.castShadow = true;
@@ -620,9 +1486,11 @@ function OptionalBuilding2() {
     });
     return cloned;
   }, [scene]);
+  
+  if (!root) return null;
 
   // Professionelle Platzierung: Basis/Plaza, Zuweg, leichte Ausrichtung
-  const baseColor = '#2f3337';
+  const baseColor = '#000000';
   const accent = '#ffb344';
   // Statische Position vorne rechts am Raster-Rechteck: x=+12, z=-12
   const pos = new THREE.Vector3(9.39, 0, -9.2);
@@ -649,28 +1517,14 @@ function OptionalBuilding2() {
 }
 
 function OptionalBridge() {
-  // Versuche exakten Dateinamen mit Umlauten und sinnvolle Fallbacks zu laden
-  let gltf: ReturnType<typeof useGLTF> | null = null;
-  let src = '/brücke-über-hafen.glb'; // Hinweis: enthält kombinierende Umlaute
-  try {
-    gltf = useGLTF(src) as any;
-  } catch (e) {
-    try {
-      // Fallback: ASCII-Umlaute
-      src = '/bruecke-ueber-hafen.glb';
-      gltf = useGLTF(src) as any;
-    } catch (e2) {
-      try {
-        // Fallback: vorkomponierte Umlaute
-        src = '/brücke-mit-hafen-neu.glb';
-        gltf = useGLTF(src) as any;
-      } catch (e3) {
-        return null;
-      }
-    }
-  }
-  const { scene } = gltf as any;
+  // Versuche den ersten verfügbaren Pfad zu laden
+  // Hooks müssen immer aufgerufen werden - verwende den ersten Pfad
+  const gltf = useGLTF('/brücke-über-hafen.glb');
+  const { scene } = gltf;
+  
+  // Verwende useMemo immer
   const root = useMemo(() => {
+    if (!scene) return null;
     const cloned = scene.clone();
     const bbox = new THREE.Box3().setFromObject(cloned);
     if (isFinite(bbox.min.y)) {
@@ -678,13 +1532,13 @@ function OptionalBridge() {
       cloned.position.y += liftY;
     }
     // Gold/Orange-Materialien für Gebäude 2
-    cloned.traverse((child: any) => {
+    cloned.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         
-        // Gold/Orange-Materialien für Gebäude 2
+        // Gold/Orange-Materialien für Brücke
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
             mesh.material.forEach((mat) => {
@@ -720,6 +1574,8 @@ function OptionalBridge() {
     return cloned;
   }, [scene]);
 
+  if (!root) return null;
+
   // Großer Hafen mit Wasser quer durch die Map (z: -12 bis 12)
   const harborPos = new THREE.Vector3(-8, 0.011, 0);
   return (
@@ -727,12 +1583,26 @@ function OptionalBridge() {
       {/* Platzhalter-Sockel unter dem Hafen */}
       <mesh position={[0, harborPos.y - 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[27, 26]} />
-        <meshStandardMaterial color="#2f3337" roughness={0.9} metalness={0.05} />
+        <meshStandardMaterial 
+          color="#000000" 
+          roughness={0.2} 
+          metalness={0.7}
+          emissive="#000000"
+          emissiveIntensity={0}
+          envMapIntensity={0.5}
+        />
       </mesh>
       {/* Wasserfläche durch die ganze Map (von -12 bis 12) */}
       <mesh position={[0, harborPos.y, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[8.4, 24]} />
-        <meshStandardMaterial color="#0c1c22" roughness={0.18} metalness={0.55} />
+        <meshStandardMaterial 
+          color="#1a2a3a" 
+          roughness={0.05} 
+          metalness={0.95}
+          emissive="#2a3a4a"
+          emissiveIntensity={0.1}
+          envMapIntensity={1.5}
+        />
       </mesh>
       {/* Brücke über den Hafen – verdreifacht und lokal um 90° drehen */}
       <group position={[0.3, 0, -6]} rotation={[0, Math.PI / 2, 0]} scale={[5.9, 5.9, 5.9]}>
@@ -743,7 +1613,7 @@ function OptionalBridge() {
 }
 
 
-function PathTo({ target }: { target: THREE.Vector3 }) {
+function _PathTo({ target }: { target: THREE.Vector3 }) {
   const color = '#ffb344';
   const start = new THREE.Vector3(0, 0.031, 8); // von Gebäude 1 (neue Position) zur Ziel-Plaza
   const points: THREE.Vector3[] = [
@@ -805,12 +1675,25 @@ function PlazaArea() {
       {/* Platzfläche - verschoben zu z = +8 und in die Mitte */}
       <mesh position={[0, 0.015, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[3.8, 48]} />
-        <meshStandardMaterial color="#2f3337" roughness={0.9} metalness={0.05} />
+        <meshStandardMaterial 
+          color="#000000" 
+          roughness={0.2} 
+          metalness={0.7}
+          emissive="#000000"
+          emissiveIntensity={0}
+          envMapIntensity={0.5}
+        />
       </mesh>
-      {/* Markierungsring - verschoben zu z = +8 und in die Mitte */}
+      {/* Markierungsring - verschoben zu z = +8 und in die Mitte mit Orange-Glühen */}
       <mesh position={[0, 0.017, 8]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.4, 3.6, 64]} />
-        <meshStandardMaterial color="#ffb344" emissive="#5a3b00" emissiveIntensity={0.2} />
+        <meshStandardMaterial 
+          color="#ffb344" 
+          emissive="#ffb344" 
+          emissiveIntensity={0.5}
+          roughness={0.1}
+          metalness={0.8}
+        />
       </mesh>
     </group>
   );
@@ -818,29 +1701,65 @@ function PlazaArea() {
 
 function ArchitecturalGrid() {
   return (
+    <group>
+      {/* Eleganter, dunkler Boden - glänzend und orange */}
+      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[200, 200]} />
+        <meshStandardMaterial 
+          color="#000000"
+          roughness={0.2}
+          metalness={0.7}
+          emissive="#000000"
+          emissiveIntensity={0}
+          envMapIntensity={0.5}
+        />
+      </mesh>
+      {/* Sehr subtiles Grid - fast unsichtbar, elegant */}
     <gridHelper 
-      args={[100, 100, '#ffb344', '#1a2a2a']} 
+        args={[100, 50, 'rgba(255, 179, 68, 0.03)', 'rgba(0, 0, 0, 0.02)']} 
       position={[0, 0.01, 0]}
     />
+    </group>
   );
 }
 
 export default function EmbedPage() {
-  // Drohne startet bei y=2 und z=7
-  const droneStartPos = new THREE.Vector3(0, 2, 7);
+  // Drohne startet bei y=0.6 und z=7 (niedriger für Flug durch die Welt)
+  const droneStartPos = new THREE.Vector3(0, 0.6, 7);
   const [dronePosition, setDronePosition] = useState(droneStartPos.clone());
   const [droneRotation, setDroneRotation] = useState(new THREE.Quaternion());
   const lastStateUpdateRef = useRef(0);
   const [targetDirection, setTargetDirection] = useState(new THREE.Vector3(0, 0, -1));
   const [isFlying, setIsFlying] = useState(false);
   const [introCompleted, setIntroCompleted] = useState(false);
-  const [startCameraAnimation, setStartCameraAnimation] = useState(false);
+  const [startCameraAnimation, setStartCameraAnimation] = useState(true); // Starte sofort beim Intro
   const [cameraPositionSet, setCameraPositionSet] = useState(false);
-  const camRef = useRef<any>(null);
+  const [showDrone, setShowDrone] = useState(false); // Drohne erst zeigen, wenn Kamera sich bewegt
+  const [introDroneAnimation, setIntroDroneAnimation] = useState(true); // Intro-Animation aktiv
+  const [cameraPhase, setCameraPhase] = useState<'logo' | 'drone'>('logo'); // Kamera-Phase verfolgen
+  const camRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  useEffect(() => {
+    const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
+    update();
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  // Zeige die Anleitung NACH dem Intro für ~2.6s
+  useEffect(() => {
+    if (!introCompleted) return;
+    setShowHint(true);
+    const t = setTimeout(() => setShowHint(false), 2600);
+    return () => clearTimeout(t);
+  }, [introCompleted]);
 
   const handlePositionUpdate = (pos: THREE.Vector3, rot: THREE.Quaternion) => {
     const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-    if (now - lastStateUpdateRef.current > 100) {
+    if (now - lastStateUpdateRef.current > 100) { // ~10 Hz
       lastStateUpdateRef.current = now;
       setDronePosition(pos.clone());
       setDroneRotation(rot.clone());
@@ -853,39 +1772,26 @@ export default function EmbedPage() {
   };
 
   const handleIntroComplete = () => {
-    setStartCameraAnimation(true);
-    setTimeout(() => {
+    // Intro-Overlay wird ausgeblendet, Kamera-Animation läuft bereits
+    // Die Kamera bewegt sich jetzt von Logo zur Drohne
+  };
+
+  const handleCameraAnimationComplete = () => {
+    // Kamera-Animation ist fertig - alles ist bereit
       setIntroCompleted(true);
+    setIntroDroneAnimation(false);
+    setStartCameraAnimation(false);
       setTimeout(() => {
         setCameraPositionSet(true);
       }, 100);
-    }, 3000);
   };
-
-  const [isMobile, setIsMobile] = useState(false);
-  const [showHint, setShowHint] = useState(false);
-  useEffect(() => {
-    const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
-  useEffect(() => {
-    if (!introCompleted) return;
-    setShowHint(true);
-    const t = setTimeout(() => setShowHint(false), 2600);
-    return () => clearTimeout(t);
-  }, [introCompleted]);
 
   return (
     <div
       style={{
         width: "100vw",
-        height: isMobile ? "90svh" : "100svh",
+        height: isMobile ? "90svh" : "100vh",
         position: "relative",
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
         userSelect: 'none',
         WebkitUserSelect: 'none' as any,
         touchAction: 'none',
@@ -893,12 +1799,12 @@ export default function EmbedPage() {
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {!introCompleted && (
+      {introDroneAnimation && (
         <IntroAnimation onComplete={handleIntroComplete} />
       )}
-      {/* Onboarding Overlay (mobil + desktop), kurz nach Intro */}
+      {/* Kurzes Onboarding-Overlay (2.6s) */}
       {showHint && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16, paddingBottom: isMobile ? 12 : 16, zIndex: 20, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pointerEvents: 'none', padding: 16, paddingBottom: isMobile ? 12 : 16, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,0,0,0.55)', color: 'white', padding: '12px 14px', borderRadius: 10, boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}>
             {/* Richtungskreuz */}
             <div style={{ position: 'relative', width: 40, height: 40, opacity: 0.9 }}>
@@ -917,50 +1823,99 @@ export default function EmbedPage() {
       
       <Canvas 
         shadows={!isMobile}
-        camera={{ position: [0, 30, 20], fov: 60 }} 
-        style={{ background: '#0a0a0a' }}
+        camera={{ position: [0, 9, 19], fov: 60 }} 
+        style={{ background: '#000000' }}
         dpr={[1, 1.75]}
         gl={{
           antialias: true,
           outputColorSpace: THREE.SRGBColorSpace,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: isMobile ? 0.95 : 1.0,
+          toneMappingExposure: isMobile ? 1.2 : 1.4,
           powerPreference: 'high-performance',
         }}
         onCreated={({ camera }) => { 
+          if (camera instanceof THREE.PerspectiveCamera) {
           camRef.current = camera;
-          camera.position.set(0, 30, 20);
-          camera.lookAt(0, 2, 0);
+          }
+          // Setze initiale Kamera-Position: von oben beim Logo
+          // Die Kamera wird dann von CameraAnimation gesteuert
+          const logoPos = new THREE.Vector3(8.0, 0.1, 5.0);
+          camera.position.set(logoPos.x, logoPos.y + 8, logoPos.z); // Von oben über dem Logo
+          camera.lookAt(logoPos); // Schaut auf das Logo
         }}
       >
-        {startCameraAnimation && !introCompleted && (
-          <CameraAnimation startAnimation={startCameraAnimation} droneStartPos={[droneStartPos.x, droneStartPos.y, droneStartPos.z]} />
-        )}
         <SceneFog />
-        {/* Verbesserte Beleuchtung für bessere Kulisse-Sichtbarkeit */}
-        <ambientLight intensity={0.25} />
-        <hemisphereLight args={[0xffffff, 0x444466, 0.4]} />
+        {/* Kamera-Animation während Intro */}
+        {startCameraAnimation && (
+          <CameraAnimation 
+            startAnimation={startCameraAnimation}
+            droneStartPos={[droneStartPos.x, droneStartPos.y, droneStartPos.z]}
+            onComplete={handleCameraAnimationComplete}
+            onPhaseChange={(phase) => {
+              setCameraPhase(phase);
+            }}
+            onShowDrone={() => {
+              // Zeige Drohne erst, wenn Kamera fast an der Endposition ist
+              setShowDrone(true);
+            }}
+          />
+        )}
+        {/* Starke Beleuchtung - Schwarz und Orange */}
+        <ambientLight intensity={0.7} color="#ffe5cc" />
+        <hemisphereLight args={[0xffe5cc, 0x000000, 0.7]} />
+        {/* Hauptlicht - sehr stark für gute Sichtbarkeit */}
         <directionalLight 
-          position={[10, 20, 10]} 
-          intensity={1.5} 
+          position={[10, 25, 10]} 
+          intensity={5.0} 
           castShadow 
-          color="#ffffff"
+          color="#ffe5cc"
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
+          shadow-bias={-0.0001}
         />
-        {/* Zusätzliche Beleuchtung von der Seite für bessere Ausleuchtung */}
+        {/* Fülllicht von links */}
         <directionalLight 
-          position={[-10, 15, 5]} 
-          intensity={0.8} 
-          color="#ffffff"
+          position={[-10, 18, 5]} 
+          intensity={2.5} 
+          color="#ffe5cc"
         />
-        {/* Zusätzliche Beleuchtung von hinten */}
+        {/* Akzentlicht von hinten */}
         <directionalLight 
-          position={[0, 10, -15]} 
-          intensity={0.6} 
-          color="#ffffff"
+          position={[0, 12, -15]} 
+          intensity={2.0}
+          color="#ffe5cc"
         />
-        <Environment files="/hdr/warehouse.hdr" background={false} blur={0.5} />
+        {/* Zusätzliches Fülllicht von rechts */}
+        <directionalLight 
+          position={[10, 15, -5]} 
+          intensity={1.5} 
+          color="#ffe5cc"
+        />
+        {/* Orange Punktlichte für wichtige Bereiche */}
+        <pointLight 
+          position={[0, 15, 0]} 
+          intensity={1.5} 
+          color="#ffb344"
+          distance={50}
+          decay={2}
+        />
+        {/* Orange Punktlicht über Gebäude 1 */}
+        <pointLight 
+          position={[0, 12, 8]} 
+          intensity={2.0} 
+          color="#ffb344"
+          distance={20}
+          decay={2}
+        />
+        {/* Orange Punktlicht über Logo */}
+        <pointLight 
+          position={[8.0, 8, 5.0]} 
+          intensity={2.5} 
+          color="#ffb344"
+          distance={15}
+          decay={2}
+        />
+        <Environment files="/hdr/warehouse.hdr" background={false} blur={0.3} environmentIntensity={0.3} />
         
         <Terrain />
         <ContactShadows 
@@ -977,6 +1932,8 @@ export default function EmbedPage() {
         <ModernCity />
         <PlazaArea />
         <BuildingPath />
+        <PlaceholderBuildings />
+        {/* <MarkerTower /> */}
         <BuildingModel />
         <OptionalBuilding2 />
         <OptionalBridge />
@@ -985,27 +1942,94 @@ export default function EmbedPage() {
         <BoatModel />
         
         <group>
+          {introDroneAnimation && showDrone ? (
+            <IntroDroneModel
+              onPositionUpdate={(pos) => {
+                // Update Position für Overlay
+                const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+                if (now - lastStateUpdateRef.current > 100) {
+                  lastStateUpdateRef.current = now;
+                  setDronePosition(pos.clone());
+                  setDroneRotation(new THREE.Quaternion());
+                }
+              }}
+            />
+          ) : !introDroneAnimation ? (
           <DroneControls 
             onPositionUpdate={handlePositionUpdate} 
             onDirectionUpdate={handleDirectionUpdate}
             disableCameraFollow={!cameraPositionSet}
           />
+          ) : null}
         </group>
       </Canvas>
       
-      {/* Drohne als Overlay */}
+      {/* Drohne als Overlay - nur nach Animation sichtbar */}
+      {showDrone && (
       <DroneOverlay 
         dronePosition={{ x: dronePosition.x, y: dronePosition.y, z: dronePosition.z }}
         droneRotation={{ x: droneRotation.x, y: droneRotation.y, z: droneRotation.z, w: droneRotation.w }}
         targetDirection={{ x: targetDirection.x, y: targetDirection.y, z: targetDirection.z }}
         isFlying={isFlying}
       />
-      
-      {/* Gebäude-Informationen - immer rechts, erst nach Intro */}
-      {introCompleted && (
-        <BuildingInfo dronePosition={{ x: dronePosition.x, y: dronePosition.y, z: dronePosition.z }} alwaysShow={true} />
       )}
-
+      
+      {/* Gebäude-Informationen - erst nach Intro */}
+      {introCompleted && (
+        <BuildingInfo dronePosition={{ x: dronePosition.x, y: dronePosition.y, z: dronePosition.z }} />
+      )}
+      
+      {/* UI-Menü und Kamera-Bookmarks entfernt */}
+      
+      <div style={{
+        position: 'absolute',
+        bottom: '20px',
+        left: '20px',
+        color: 'white',
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '12px',
+        zIndex: 1000
+      }}>
+        <div style={{ 
+          width: '30px', 
+          height: '30px', 
+          borderRadius: '50%', 
+          border: '2px solid #ffb344',
+          boxShadow: '0 0 15px #ffb344',
+          marginBottom: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ 
+            width: '15px', 
+            height: '15px', 
+            borderRadius: '50%', 
+            backgroundColor: '#ffb344',
+            boxShadow: '0 0 10px #ffb344'
+          }}></div>
+        </div>
+      </div>
+      
+      {/* "Zurück zur Übersicht" entfernt */}
+      
+      <div style={{
+        position: 'absolute',
+        right: '10px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 1000
+      }}>
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={i} style={{
+            width: '20px',
+            height: '2px',
+            backgroundColor: 'white',
+            marginBottom: '5px',
+            opacity: 0.6
+          }}></div>
+        ))}
+      </div>
     </div>
   );
 }

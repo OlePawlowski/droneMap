@@ -7,48 +7,52 @@ export default function IntroAnimation({
 }: { 
   onComplete: () => void 
 }) {
-  const [logoOpacity, setLogoOpacity] = useState(1);
-  const [showLogo, setShowLogo] = useState(true);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [opacity, setOpacity] = useState(1);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const startTime = useRef(Date.now());
+  const hasCalledComplete = useRef(false);
 
   useEffect(() => {
-    const duration = 3500; // 3.5 Sekunden Logo anzeigen
+    // Ladescreen sollte nur so lange sein, wie das Programm braucht zu laden
+    // Hier verwenden wir eine kurze Mindestzeit (z.B. 2-3 Sekunden) für den Ladebalken
+    const minLoadingDuration = 2000; // Mindestzeit für Ladebalken-Animation
+    const fadeStartDuration = 2500; // Starte Fade-out nach 2.5s (früher, damit Logo sichtbar wird)
+    const fadeDuration = 800; // Fade-out dauert 0.8s
 
     const animate = () => {
       const elapsed = Date.now() - startTime.current;
-      const progress = elapsed / duration;
+      
+      // Lade-Progress (schneller, damit Overlay früher weg ist)
+      const progress = Math.min(elapsed / minLoadingDuration, 1);
+      setLoadingProgress(progress);
 
-      if (progress >= 1) {
-        // Animation abgeschlossen
-        setShowLogo(false);
+      // Starte Kamera-Animation nach kurzer Zeit (Overlay wird ausgeblendet, aber Kamera bleibt beim Logo)
+      if (!hasCalledComplete.current && elapsed >= minLoadingDuration) {
+        hasCalledComplete.current = true;
         onComplete();
+      }
+
+      // Fade out früher, damit Logo sichtbar wird
+      if (elapsed > fadeStartDuration) {
+        const fadeProgress = (elapsed - fadeStartDuration) / fadeDuration;
+        const newOpacity = Math.max(0, 1 - fadeProgress);
+        setOpacity(newOpacity);
+        
+        if (newOpacity <= 0) {
+          setShowOverlay(false);
+        }
       }
     };
 
     const interval = setInterval(animate, 16);
-    const fadeOutStart = setTimeout(() => {
-      setLogoOpacity(0);
-    }, duration - 500); // Fade out in letztem halben Sekunde
 
     return () => {
       clearInterval(interval);
-      clearTimeout(fadeOutStart);
     };
   }, [onComplete]);
 
-  useEffect(() => {
-    const duration = 3500;
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime.current;
-      const progress = elapsed / duration;
-      setLoadingProgress(progress);
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (!showLogo) return null;
+  if (!showOverlay) return null;
 
   return (
     <div
@@ -58,70 +62,72 @@ export default function IntroAnimation({
         left: 0,
         width: '100%',
         height: '100%',
+        zIndex: 10000,
+        background: 'rgba(0, 0, 0, 0.95)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
-        background: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(10px)',
-        opacity: logoOpacity,
-        transition: 'opacity 0.5s ease-out'
+        opacity: opacity,
+        transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+        pointerEvents: opacity > 0.1 ? 'auto' : 'none',
       }}
     >
-      <img
-        src="/statikbüro-logo.png"
-        alt="Statikbüro Logo"
-        style={{
-          maxWidth: '400px',
-          width: '80%',
-          height: 'auto',
-          filter: 'drop-shadow(0 0 30px rgba(255, 179, 68, 0.3))',
-          animation: 'pulse 2s ease-in-out infinite',
-          marginBottom: '40px'
-        }}
-      />
-      
-      {/* Moderner Ladebalken */}
+      {/* Logo */}
       <div style={{
-        width: '300px',
-        height: '4px',
-        backgroundColor: '#1a1a1a',
-        borderRadius: '2px',
-        overflow: 'hidden',
-        position: 'relative'
+        marginBottom: '40px',
+        opacity: opacity,
       }}>
-        <div style={{
-          width: `${loadingProgress * 100}%`,
-          height: '100%',
-          background: 'linear-gradient(90deg, #ffb344 0%, #ffd700 50%, #ffb344 100%)',
-          backgroundSize: '200% 100%',
-          animation: 'shimmer 2s infinite',
-          boxShadow: '0 0 10px rgba(255, 179, 68, 0.5)',
-          transition: 'width 0.1s linear'
-        }} />
+        <img 
+          src="/logo-animated.svg" 
+          alt="Logo" 
+          style={{
+            height: '120px',
+            width: 'auto',
+            filter: 'drop-shadow(0 0 20px rgba(255, 179, 68, 0.5))',
+          }}
+          onError={(e) => {
+            // Fallback wenn Logo nicht gefunden wird
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
       </div>
 
-      <style jsx>{`
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.9;
-            transform: scale(1.02);
-          }
-        }
-        @keyframes shimmer {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
-        }
-      `}</style>
+      {/* Ladekreis mit animiertem Rand */}
+      <div style={{
+        width: '80px',
+        height: '80px',
+        opacity: opacity,
+        position: 'relative',
+      }}>
+        <svg width="80" height="80" style={{ transform: 'rotate(-90deg)' }}>
+          {/* Hintergrund-Kreis */}
+          <circle
+            cx="40"
+            cy="40"
+            r="35"
+            fill="none"
+            stroke="rgba(255, 255, 255, 0.1)"
+            strokeWidth="4"
+          />
+          {/* Animierter Rand-Kreis */}
+          <circle
+            cx="40"
+            cy="40"
+            r="35"
+            fill="none"
+            stroke="#ffb344"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={2 * Math.PI * 35}
+            strokeDashoffset={2 * Math.PI * 35 * (1 - loadingProgress)}
+            style={{
+              filter: 'drop-shadow(0 0 10px rgba(255, 179, 68, 0.8))',
+              transition: 'stroke-dashoffset 0.1s linear',
+            }}
+          />
+        </svg>
+      </div>
     </div>
   );
 }
