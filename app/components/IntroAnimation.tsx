@@ -11,17 +11,33 @@ export default function IntroAnimation({
   const [opacity, setOpacity] = useState(1);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [showLogo, setShowLogo] = useState(false); // Logo erst nach kurzer Verzögerung zeigen (nur mobil)
   const startTime = useRef(Date.now());
   const hasCalledComplete = useRef(false);
 
   useEffect(() => {
     const checkDesktop = () => {
-      setIsDesktop(window.innerWidth >= 768);
+      const desktop = window.innerWidth >= 768;
+      setIsDesktop(desktop);
+      // Auf Desktop: Logo sofort zeigen, auf Mobile: nach Verzögerung
+      if (desktop) {
+        setShowLogo(true);
+      }
     };
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
+
+  // Zeige Logo erst nach kurzer Verzögerung auf mobilen Geräten, damit SVG-Animation von Anfang an sichtbar ist
+  useEffect(() => {
+    if (!isDesktop) {
+      const timer = setTimeout(() => {
+        setShowLogo(true);
+      }, 300); // 300ms Verzögerung nur für mobile Geräte
+      return () => clearTimeout(timer);
+    }
+  }, [isDesktop]);
 
   useEffect(() => {
     // Ladescreen sollte nur so lange sein, wie das Programm braucht zu laden
@@ -113,8 +129,8 @@ export default function IntroAnimation({
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            width: '280px', // Mobile: Größere Breite für größeres Logo
-            height: '140px', // Mobile: Größere Höhe für größeres Logo
+            width: '360px', // Mobile: Noch größere Breite für größeres Logo
+            height: '180px', // Mobile: Noch größere Höhe für größeres Logo
             marginTop: 0, // Explizit setzen
           }}
         >
@@ -123,19 +139,21 @@ export default function IntroAnimation({
             alt="Logo"
             className="loading-logo-img"
             style={{
-              height: '140px', // Mobile: Größeres Logo
+              height: '180px', // Mobile: Noch größeres Logo
               width: 'auto',
-              maxWidth: '280px', // Mobile: Größeres Logo
+              maxWidth: '360px', // Mobile: Noch größeres Logo
               objectFit: 'contain',
               filter: 'drop-shadow(0 0 20px rgba(255, 179, 68, 0.5))',
               display: 'block', // Verhindert Layout-Sprünge
-              visibility: 'visible', // Explizit sichtbar
+              visibility: showLogo || isDesktop ? 'visible' : 'hidden', // Logo erst nach Verzögerung zeigen (nur mobil)
+              opacity: showLogo || isDesktop ? 1 : 0, // Sanftes Einblenden (nur mobil)
+              transition: 'opacity 0.3s ease-in',
             }}
             onLoad={(e) => {
               // Stelle sicher, dass das Bild sofort die richtige Größe hat
               const img = e.target as HTMLImageElement;
               const isDesktop = window.innerWidth >= 768;
-              img.style.height = isDesktop ? '350px' : '140px';
+              img.style.height = isDesktop ? '350px' : '180px';
             }}
             onError={(e) => {
               // Fallback wenn Logo nicht gefunden wird
