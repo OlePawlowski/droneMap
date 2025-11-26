@@ -95,7 +95,7 @@ export default function BuildingInfo({ dronePosition, alwaysShow, showAfterDrone
       hideTimeoutRef.current = setTimeout(() => {
         setVisibleInfo(null);
         hideTimeoutRef.current = null;
-      }, 10000); // 10 Sekunden Verzögerung bevor ausgeblendet wird
+      }, 3000); // 3 Sekunden Verzögerung bevor ausgeblendet wird
     } else if (!found && !visibleInfo) {
       // Wenn keine Info angezeigt wird, setze direkt auf null
       setVisibleInfo(null);
