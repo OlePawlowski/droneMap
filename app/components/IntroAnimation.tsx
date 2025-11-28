@@ -31,13 +31,9 @@ export default function IntroAnimation({
 
   // Zeige Logo erst nach kurzer Verzögerung auf mobilen Geräten, damit SVG-Animation von Anfang an sichtbar ist
   useEffect(() => {
-    if (!isDesktop) {
-      const timer = setTimeout(() => {
-        setShowLogo(true);
-      }, 300); // 300ms Verzögerung nur für mobile Geräte
-      return () => clearTimeout(timer);
-    }
-  }, [isDesktop]);
+  setShowLogo(true);
+}, []);
+
 
   useEffect(() => {
     // Ladescreen sollte nur so lange sein, wie das Programm braucht zu laden
