@@ -113,6 +113,7 @@ export default function IntroAnimation({
         }}
       >
         {/* Logo - absolut vertikal zentriert, unabhängig vom Ladekreis */}
+{/* Logo - absolut vertikal zentriert */}
 <div 
   className="loading-logo-container"
   style={{
@@ -124,63 +125,72 @@ export default function IntroAnimation({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    width: '360px',
-    height: '180px',
-    marginTop: 0,
+
+    // ⬇️ exakt wie dein vorheriges IMG
+    width: isDesktop ? '700px' : '360px',
+    height: isDesktop ? '350px' : '180px',
   }}
 >
+  {/* Wrapper für responsive scaling */}
   <div
-    className="loading-logo-img"
     style={{
-      height: '180px',
-      width: 'auto',
-      maxWidth: '360px',
-      objectFit: 'contain',
-      filter: 'drop-shadow(0 0 20px rgba(255, 179, 68, 0.5))',
-      display: 'block',
-      visibility: showLogo || isDesktop ? 'visible' : 'hidden',
-      opacity: showLogo || isDesktop ? 1 : 0,
-      transition: 'opacity 0.3s ease-in',
+      width: "100%",
+      height: "100%",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
     }}
   >
-    {/* INLINE SVG — funktioniert auf Mobile garantiert */}
-    <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="260" viewBox="0 0 1400 260">
+    {/* Dein eingebettetes SVG */}
+    <svg 
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 1400 260"
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        maxWidth: "100%",
+        maxHeight: "100%",
+        filter: "drop-shadow(0 0 20px rgba(255, 179, 68, 0.5))",
+        visibility: showLogo || isDesktop ? "visible" : "hidden",
+        opacity: showLogo || isDesktop ? 1 : 0,
+        transition: "opacity 0.3s ease-in",
+      }}
+    >
       <defs>
-        <style>
-          {`
-            .letter {
-              font-family: 'Montserrat','Helvetica Neue',Arial,sans-serif;
-              font-weight: 800;
-              font-size: 150px;
-              fill: none;
-              stroke: #FFBC3D;
-              stroke-width: 4;
-              stroke-linecap: round;
-              stroke-linejoin: round;
-              stroke-dasharray: 1000;
-              stroke-dashoffset: 1000;
-              animation: draw 6.0s ease forwards;
-            }
-            @keyframes draw {
-              to { stroke-dashoffset: 0; }
-            }
-          `}
-        </style>
+        <style>{`
+          .letter {
+            font-family: 'Montserrat','Helvetica Neue',Arial,sans-serif;
+            font-weight: 800;
+            font-size: 150px;
+            fill: none;
+            stroke: #FFBC3D;
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: draw 6.0s ease forwards;
+          }
+          @keyframes draw {
+            to { stroke-dashoffset: 0; }
+          }
+        `}</style>
       </defs>
 
       <g transform="translate(40,180)">
-        <text x="0"    y="0" className="letter">S</text>
-        <text x="110"  y="0" className="letter">T</text>
-        <text x="210"  y="0" className="letter">A</text>
-        <text x="320"  y="0" className="letter">T</text>
-        <text x="420"  y="0" className="letter">I</text>
-        <text x="480"  y="0" className="letter">K</text>
-        <text x="600"  y="0" className="letter">B</text>
-        <text x="720"  y="0" className="letter">Ü</text>
-        <text x="840"  y="0" className="letter">R</text>
-        <text x="955"  y="0" className="letter">O</text>
-        <text x="1085" y="0" className="letter">2</text>
-        <text x="1180" y="0" className="letter">4</text>
+        <text x="0"    y="0" class="letter">S</text>
+        <text x="110"  y="0" class="letter">T</text>
+        <text x="210"  y="0" class="letter">A</text>
+        <text x="320"  y="0" class="letter">T</text>
+        <text x="420"  y="0" class="letter">I</text>
+        <text x="480"  y="0" class="letter">K</text>
+        <text x="600"  y="0" class="letter">B</text>
+        <text x="720"  y="0" class="letter">Ü</text>
+        <text x="840"  y="0" class="letter">R</text>
+        <text x="955"  y="0" class="letter">O</text>
+        <text x="1085" y="0" class="letter">2</text>
+        <text x="1180" y="0" class="letter">4</text>
       </g>
     </svg>
   </div>
