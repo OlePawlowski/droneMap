@@ -29,7 +29,6 @@ export default function IntroAnimation({
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
 
-  // Zeige Logo erst nach kurzer Verzögerung auf mobilen Geräten, damit SVG-Animation von Anfang an sichtbar ist
   useEffect(() => {
   setShowLogo(true);
 }, []);
@@ -144,12 +143,6 @@ export default function IntroAnimation({
               visibility: showLogo || isDesktop ? 'visible' : 'hidden', // Logo erst nach Verzögerung zeigen (nur mobil)
               opacity: showLogo || isDesktop ? 1 : 0, // Sanftes Einblenden (nur mobil)
               transition: 'opacity 0.3s ease-in',
-            }}
-            onLoad={(e) => {
-              // Stelle sicher, dass das Bild sofort die richtige Größe hat
-              const img = e.target as HTMLImageElement;
-              const isDesktop = window.innerWidth >= 768;
-              img.style.height = isDesktop ? '350px' : '180px';
             }}
             onError={(e) => {
               // Fallback wenn Logo nicht gefunden wird
